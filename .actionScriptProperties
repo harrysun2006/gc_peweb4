@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<actionScriptProperties mainApplicationPath="index.mxml" version="3">
+  <compiler additionalCompilerArguments="-locale zh_CN -locale+=en_US -default-size 800 600 -show-unused-type-selector-warnings=false" copyDependentFiles="true" enableModuleDebug="true" generateAccessible="false" htmlExpressInstall="true" htmlGenerate="true" htmlHistoryManagement="true" htmlPlayerVersion="9.0.124" htmlPlayerVersionCheck="true" outputFolderPath="www" rootURL="http://localhost" sourceFolderPath="flex_src" strict="true" useApolloConfig="false" verifyDigests="true" warn="true">
+    <compilerSourcePath>
+      <compilerSourcePathEntry kind="1" linkType="1" path="locale/{locale}"/>
+    </compilerSourcePath>
+    <libraryPath defaultLinkType="3">
+      <libraryPathEntry kind="1" linkType="1" path="flex_lib"/>
+      <libraryPathEntry kind="4" path=""/>
+    </libraryPath>
+    <sourceAttachmentPath>
+      <sourceAttachmentPathEntry kind="3" linkType="1" path="E:/Projects/GreatCreate/peweb3/flex_lib/swiz-0.6.4-flex3.swc" sourcepath="flex_lib_src/swiz-0.6.4-flex3" useDefaultLinkType="false"/>
+      <sourceAttachmentPathEntry kind="3" linkType="2" path="${PROJECT_FRAMEWORKS}/libs/player/9/playerglobal.swc" sourcepath="${PROJECT_FRAMEWORKS}" useDefaultLinkType="false"/>
+    </sourceAttachmentPath>
+  </compiler>
+  <applications>
+    <application path="index.mxml"/>
+    <application path="test/test.mxml"/>
+  </applications>
+  <modules>
+    <module application="flex_src/index.mxml" destPath="login.swf" optimize="true" sourcePath="flex_src/login.mxml"/>
+    <module application="flex_src/index.mxml" destPath="modules.swf" optimize="true" sourcePath="flex_src/modules.mxml"/>
+    <module application="flex_src/index.mxml" destPath="hr/index.swf" optimize="true" sourcePath="flex_src/hr/index.mxml"/>
+    <module application="flex_src/index.mxml" destPath="safety/index.swf" optimize="true" sourcePath="flex_src/safety/index.mxml"/>
+  </modules>
+  <buildCSSFiles>
+    <buildCSSFileEntry destPath="www" sourcePath="flex_src/skins/flex.css"/>
+    <buildCSSFileEntry destPath="www" sourcePath="flex_src/skins/gcc.css"/>
+  </buildCSSFiles>
+</actionScriptProperties>

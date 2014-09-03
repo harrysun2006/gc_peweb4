@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" width="600" height="420"
+                preinitialize="onPreinitialize()" creationComplete="onCreationComplete()">
+  <mx:Form id="form" width="100%">
+    <mx:ToolBar width="100%">
+      <mx:FormItem label="{resourceManager.getString('gcc_hr', 'salTemplate.depart')}:">
+        <mx:ComboBox id="cbDepart" name="depart" width="170"/>
+      </mx:FormItem>
+      <mx:FormItem label="{resourceManager.getString('gcc_hr', 'salTemplate.name')}:">
+        <mx:TextInput name="name" text="{head.name}" width="170"/>
+      </mx:FormItem>
+      <mx:FormItem label="{resourceManager.getString('gcc_hr', 'salTemplate.comment')}:">
+        <mx:TextInput name="comment" text="{head.comment}" width="436"/>
+      </mx:FormItem>
+    </mx:ToolBar>
+    <mx:HBox width="100%">
+      <mx:VBox width="50%">
+        <mx:Label text="{resourceManager.getString('gcc_hr', 'salTemplate.allItems')}:" width="100%"/>
+        <mx:List id="l1" dataProvider="{list1}" labelField="name" allowDragSelection="true"
+                 allowMultipleSelection="true" dragEnabled="true" dragMoveEnabled="true"
+                 dropEnabled="true" doubleClickEnabled="true" doubleClick="onDbClickList1(event)"
+                 width="100%"/>
+      </mx:VBox>
+      <mx:VBox width="50%">
+        <mx:Label text="{resourceManager.getString('gcc_hr', 'salTemplate.items')}:" width="100%"/>
+        <mx:List id="l2" name="factItems" dataProvider="{list2}" labelField="name"
+                 allowDragSelection="true" allowMultipleSelection="true" dragEnabled="true"
+                 dragMoveEnabled="true" dropEnabled="true" doubleClickEnabled="true"
+                 doubleClick="onDbClickList2(event)" width="100%"/>
+      </mx:VBox>
+    </mx:HBox>
+    <mx:HBox horizontalAlign="center" width="100%" paddingTop="7">
+      <mx:Button label="{resourceManager.getString('gcc', 'ok')}" click="save(event)"
+                 enabled="{UserController.hrSalWrite}"/>
+      <mx:Button label="{resourceManager.getString('gcc', 'cancel')}" click="close(event)"/>
+    </mx:HBox>
+  </mx:Form>
+  <mx:Script>
+    <![CDATA[
+      import bee.eval.Ident;
+      import mx.collections.ArrayCollection;
+      import mx.rpc.events.ResultEvent;
+      import mx.utils.ObjectUtil;
+
+      import com.gc.Constants;
+      import com.gc.CommonEvent;
+      import com.gc.common.controller.UserController;
+      import com.gc.common.controller.BaseController;
+      import com.gc.hr.controller.SalaryController;
+      import com.gc.hr.model.SalItem;
+      import com.gc.hr.model.SalTemplate;
+      import com.gc.util.CommonUtil;
+
+      [Bindable]
+      private var list1:ArrayCollection; // 未选择的项目列表
+      [Bindable]
+      private var list2:ArrayCollection; // 已选择的项目列表
+      private var op:String;
+      private var items:ArrayCollection; // 模板的项目列表
+      [Bindable]
+      private var head:SalTemplate; // 当前add/edit的模板, SalTemplate(fetched: depart)
+      private var _data:ArrayCollection; // 当前edit/view的模板明细[{person:p1, stds:[std11, ..., std1n]}, ..., {person:pn, stds:[stdn1, ..., stdnn]}]
+      private var items_old:ArrayCollection;
+      private var head_old:SalTemplate;
+      private var persons:ArrayCollection;
+
+      private function onPreinitialize():void
+      {
+        addEventListener(CommonEvent.CREATED, onCreated);
+      }
+
+      private function onCreationComplete():void
+      {
+        cbDepart.dataProvider=BaseController.departmentList;
+        cbDepart.enabled=UserController.hrHead;
+        CommonUtil.visit(this, function(obj:Object):void
+          {
+            if (obj is FormItem)
+            {
+              obj.styleName="filterLabel";
+            }
+          });
+      }
+
+      private function onCreated(e:CommonEvent):void
+      {
+        head=e.args[0] as SalTemplate;
+        op=(head.id == 0) ? Constants.OP_ADD : Constants.OP_EDIT;
+        list1=ObjectUtil.copy(SalaryController.salItemList) as ArrayCollection;
+        list2=new ArrayCollection();
+        var index:int=-1;
+        if (op == Constants.OP_ADD)
+        {
+          title=resourceManager.getString("gcc_hr", "salTemplate.add1");
+          head.branch=UserController.branch;
+          index=CommonUtil.indexOfKey(BaseController.departmentList, UserController.hrDepart);
+        }
+        else if (op == Constants.OP_EDIT)
+        {
+          title=resourceManager.getString("gcc_hr", "salTemplate.edit", [head.departName, head.name]);
+          index=CommonUtil.indexOfKey(BaseController.departmentList, head.depart);
+          SalaryController.getTemplatePersonsAndItems(head, load1);
+        }
+        callLater(function():void{cbDepart.selectedIndex=index;});
+      }
+
+      private function load1(e:ResultEvent):void
+      {
+        persons=e.result.persons;
+        items_old=e.result.items;
+        head_old=e.result.head;
+        _data=e.result.data;
+        items=ObjectUtil.copy(items_old) as ArrayCollection;
+        head=ObjectUtil.copy(head_old) as SalTemplate;
+        list2=items;
+        var si:SalItem;
+        var m:Object=new Object();
+        for each (si in list2)
+        {
+          m["si#"+si.id]=si;
+        }
+        for (var i:int=list1.length-1; i >= 0; i--)
+        {
+          si=list1[i] as SalItem;
+          if (m["si#"+si.id])
+            list1.removeItemAt(i);
+        }
+      }
+
+      private function load2(e:ResultEvent=null):void
+      {
+        if (e)
+        {
+          persons=e.result.persons;
+          items_old=e.result.items;
+          head_old=e.result.head;
+          _data=e.result.data;
+        }
+        CommonUtil.popupWindow(TemplateVoucher, "", this.owner, [persons, list2, head, _data, items_old, head_old, op]);
+        close();
+      }
+
+      private function save(e:Event):void
+      {
+        if (!CommonUtil.validateForm(form, ["depart", "name"]))
+          return;
+        if (list2.length == 0)
+        {
+          CommonUtil.showError(l2, 2000, resourceManager.getString("gcc", "value.required.error"));
+          return;
+        }
+        var r:Object=SalItem.validate(list2, [SalItem.EVALF_ITEMS]);
+        if (!r.valid)
+        {
+          var n:String, s:String="";
+          for (n in r.error)
+          {
+            s=r.error[n];
+            break;
+          }
+          CommonUtil.showError(l2, 2000, s);
+          return;
+        }
+
+        CommonUtil.loadInstance(form, head);
+        if (op == Constants.OP_ADD)
+          // SalaryController.getDeptPsns(UserController.branchId, head.departId, load);
+          SalaryController.createTemplatePersonsAndItems({head:head,items:list2}, load2);
+        else
+          load2();
+      }
+
+      private function close(e:Event=null):void
+      {
+        dispatchEvent(CommonEvent.CLOSE_EVENT);
+      }
+
+      private function onDbClickList1(e:MouseEvent):void
+      {
+        if (l1.selectedIndex >= 0)
+        {
+          list2.addItem(l1.selectedItem);
+          list1.removeItemAt(l1.selectedIndex);
+        }
+      }
+
+      private function onDbClickList2(e:MouseEvent):void
+      {
+        if (l2.selectedIndex >= 0)
+        {
+          list1.addItem(l2.selectedItem);
+          list2.removeItemAt(l2.selectedIndex);
+        }
+      }
+    ]]>
+  </mx:Script>
+</mx:TitleWindow>

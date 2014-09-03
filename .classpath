@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" path="src"/>
+	<classpathentry kind="src" output="bin" path="test"/>
+	<classpathentry kind="lib" path="lib/core-3.1.1.jar"/>
+	<classpathentry kind="lib" path="lib/jetty-6.1.4.jar"/>
+	<classpathentry kind="lib" path="lib/jetty-util-6.1.4.jar"/>
+	<classpathentry kind="lib" path="lib/jsp-2.1.jar"/>
+	<classpathentry kind="lib" path="lib/jsp-api-2.1.jar"/>
+	<classpathentry kind="lib" path="lib/servlet-api-2.5-6.1.4.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/backport-util-concurrent.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/cfgatewayadapter.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/concurrent.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/connector-1_5.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/hibernate3.jar" sourcepath="lib_src/hibernate-3.3.1GA-core-sources.zip"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/log4j-1.2.13.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/oscache-2.3.2.jar"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="lib" path="lib/naming-factory.jar"/>
+	<classpathentry kind="lib" path="lib/naming-factory-dbcp.jar"/>
+	<classpathentry kind="lib" path="lib/naming-resources.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/ojdbc14.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/dom4j-1.6.1.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/hibernate-annotations.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/jta-1.1.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/slf4j-log4j12-1.5.6.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/javassist-3.4.GA.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/antlr-2.7.6.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/commons-logging-1.1.1.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/slf4j-api-1.5.6.jar"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.junit.JUNIT_CONTAINER/4"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/spring-security-acl-2.0.4.jar" sourcepath="lib_src/spring-security-acl-2.0.4-sources.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/spring-security-core-2.0.4.jar" sourcepath="lib_src/spring-security-core-2.0.4-sources.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/aopalliance.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/asm.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/cglib-2.1.3.jar" sourcepath="lib_src/cglib-src-2.1_3.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/commons-collections-3.2.1.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/commons-lang-2.4.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/ow_carol.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/howl.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/commons-httpclient-3.0.1.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/commons-codec-1.3.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/jackson-core-asl-1.0.0.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/flex-messaging-common.jar" sourcepath="lib_src/flex-messaging-common-sources.zip"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/flex-messaging-core.jar" sourcepath="lib_src/flex-messaging-core-sources.zip"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/flex-messaging-opt.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/flex-messaging-proxy.jar" sourcepath="lib_src/flex-messaging-proxy-sources.zip"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/flex-messaging-remoting.jar" sourcepath="lib_src/flex-messaging-remoting-sources.zip"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/spring-flex-1.0.0.RC2.jar"/>
+	<classpathentry kind="lib" path="lib/oro.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/xalan.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/commons-fileupload-1.2.1.jar" sourcepath="lib_src/commons-fileupload-1.2.1-sources.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/aspectjrt.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/aspectjweaver.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/jotm_iiop_stubs.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/jotm_jrmp_stubs.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/jotm.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/xapool.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/proxool-0.9.1.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/proxool-cglib.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/spring-aop.jar" sourcepath="lib_src/spring-aop-sources.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/spring-beans.jar" sourcepath="lib_src/spring-beans-sources.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/spring-context-support.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/spring-context.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/spring-core.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/spring-jdbc.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/spring-orm.jar" sourcepath="lib_src/spring-orm-sources.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/spring-test.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/spring-tx.jar" sourcepath="lib_src/spring-tx-sources.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/spring-web.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/spring-webmvc.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/jxl-2.6.10.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/iText-2.1.7.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/iTextAsian.jar"/>
+	<classpathentry kind="lib" path="www/WEB-INF/lib/commons-io-1.4.jar"/>
+	<classpathentry kind="output" path="www/WEB-INF/classes"/>
+</classpath>

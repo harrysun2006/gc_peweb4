@@ -1,0 +1,330 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" layout="vertical"
+                preinitialize="onPreinitialize()" creationComplete="onCreationComplete()">
+  <mx:VBox width="100%" height="100%" autoLayout="true">
+    <mx:Box width="100%">
+      <mx:ToolBar id="form" percentWidth="100">
+        <mx:GridItem>
+          <mx:Label text="{resourceManager.getString('gcc', 'person.upgradeDate')}:"/>
+          <mx:TextInput name="upgradeDate" editable="false" width="160"
+                        text="{DateUtil.formatDate(po.upgradeDate, Constants.DATE_FORMAT)}"/>
+        </mx:GridItem>
+        <mx:GridItem>
+          <mx:Label text="{resourceManager.getString('gcc', 'person.upgradeReason')}:"/>
+          <mx:TextInput name="upgradeReason" text="{po.upgradeReason}" width="280"/>
+        </mx:GridItem>
+      </mx:ToolBar>
+    </mx:Box>
+    <mx:HBox width="100%" height="100%">
+      <mx:AdvancedDataGrid id="adg1" width="50%" height="100%" horizontalScrollPolicy="auto"
+                           sortableColumns="false" labelFunction="{CommonUtil.gridLabelFunction}"
+                           lockedColumnCount="3" keyDown="CommonUtil.gridKeyDown(event)"
+                           verticalScrollPolicy="off">
+        <mx:groupedColumns>
+          <mx:AdvancedDataGridColumn dataField="{Constants.PROP_NAME_SERIAL}" width="64"
+                                     labelFunction="{CommonUtil.serialLabelFunction}"
+                                     styleFunction="{CommonUtil.serialStyleFunction}"/>
+          <mx:AdvancedDataGridColumn dataField="name"/>
+          <mx:AdvancedDataGridColumn dataField="workerId"/>
+          <mx:AdvancedDataGridColumnGroup 
+                                          headerText="{resourceManager.getString('gcc_hr', 'person.manage.old.values')}"
+                                          textAlign="left">
+            <mx:AdvancedDataGridColumn dataField="upgradeDate"/>
+            <mx:AdvancedDataGridColumn dataField="type"/>
+            <mx:AdvancedDataGridColumn dataField="fkPosition" dataTipField="fkPosition.name"/>
+            <mx:AdvancedDataGridColumn dataField="workType"/>
+            <mx:AdvancedDataGridColumn dataField="regBelong"/>
+            <mx:AdvancedDataGridColumn dataField="party"/>
+            <mx:AdvancedDataGridColumn dataField="grade"/>
+            <mx:AdvancedDataGridColumn dataField="schooling"/>
+          </mx:AdvancedDataGridColumnGroup>
+        </mx:groupedColumns>
+      </mx:AdvancedDataGrid>
+      <mx:AdvancedDataGrid id="adg2" width="50%" height="100%" horizontalScrollPolicy="auto"
+                           editable="true" sortableColumns="false" styleFunction="styleOfPerson"
+                           labelFunction="{CommonUtil.gridLabelFunction}" scroll="onScroll(event)"
+                           keyDown="CommonUtil.gridKeyDown(event)"
+                           itemEditEnd="onItemEditEnd(event)">
+        <mx:groupedColumns>
+          <mx:AdvancedDataGridColumnGroup 
+                                          headerText="{resourceManager.getString('gcc_hr', 'person.manage.new.values')}"
+                                          textAlign="center">
+            <mx:AdvancedDataGridColumn dataField="type" itemEditor="{comboBox}"/>
+            <mx:AdvancedDataGridColumn dataField="fkPosition" dataTipField="fkPosition.name"
+                                       editorDataField="selectedItem" itemEditor="{comboBox}"/>
+            <mx:AdvancedDataGridColumn dataField="workType" itemEditor="{comboBox}"/>
+            <mx:AdvancedDataGridColumn dataField="regBelong" itemEditor="{comboBox}"/>
+            <mx:AdvancedDataGridColumn dataField="party" itemEditor="{comboBox}"/>
+            <mx:AdvancedDataGridColumn dataField="grade" itemEditor="{comboBox}"/>
+            <mx:AdvancedDataGridColumn dataField="schooling" itemEditor="{comboBox}"/>
+          </mx:AdvancedDataGridColumnGroup>
+        </mx:groupedColumns>
+      </mx:AdvancedDataGrid>
+    </mx:HBox>
+    <mx:HBox horizontalAlign="center" width="100%" paddingTop="10" paddingBottom="10">
+      <mx:Button label="{resourceManager.getString('gcc', 'update.batch')}" click="refresh(event)"
+                 toolTip="{resourceManager.getString('gcc_hr', 'person.update.batch.tooltip')}"/>
+      <mx:Button label="{resourceManager.getString('gcc', 'save')}" click="update(event)"/>
+      <mx:Button label="{resourceManager.getString('gcc', 'cancel')}" click="close(event)"/>
+    </mx:HBox>
+  </mx:VBox>
+  <mx:Script>
+    <![CDATA[
+      import mx.collections.ArrayCollection;
+      import mx.collections.IList;
+      import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+      import mx.controls.advancedDataGridClasses.AdvancedDataGridListData;
+      import mx.controls.Alert;
+      import mx.controls.ComboBox;
+      import mx.controls.Label;
+      import mx.events.AdvancedDataGridEvent;
+      import mx.events.CloseEvent;
+      import mx.events.FlexEvent;
+      import mx.rpc.events.ResultEvent;
+
+      import com.gc.Constants;
+      import com.gc.CommonEvent;
+      import com.gc.common.model.Person;
+      import com.gc.common.model.PsnStatus;
+      import com.gc.controls.AdvancedClassFactory;
+      import com.gc.controls.AutoCompleteComboBox;
+      import com.gc.hr.controller.PersonalController;
+      import com.gc.util.CommonUtil;
+      import com.gc.util.DateUtil;
+
+      [Bindable]
+      private var po:Person=new Person();
+      [Bindable]
+      private var comboBox:AdvancedClassFactory;
+      private var lists:Object;
+      private var list0:ArrayCollection;
+      private var list1:ArrayCollection;
+      private var list2:ArrayCollection;
+      private var columnIndex:int;
+      private var rowIndex:int;
+
+      private function init():void
+      {
+        lists={type:PersonalController.hireTypeList, 
+            fkPosition:PersonalController.positionList, 
+            regBelong:PersonalController.regBranchList,
+            party:PersonalController.polPartyList, 
+            grade:PersonalController.jobGradeList, 
+            schooling:PersonalController.schoolingList};
+      }
+
+      private function onPreinitialize():void
+      {
+        columnIndex=-1;
+        rowIndex=-1;
+        comboBox=new AdvancedClassFactory(ComboBox);
+        comboBox.properties={editable:true, itemRenderer:new ClassFactory(Label)};
+        comboBox.listeners=[{type:FlexEvent.CREATION_COMPLETE, listener:onComboBoxCreateComplete}
+          , {type:KeyboardEvent.KEY_UP, listener:CommonUtil.keyUp}];
+        addEventListener(CommonEvent.CREATED, onCreated);
+      }
+
+      private function onCreationComplete():void
+      {
+        CommonUtil.setDataGridColumns(adg1, "gcc", "person");
+        CommonUtil.setDataGridColumns(adg2, "gcc", "person");
+        this.setFocus();
+      }
+
+      private function onCreated(event:CommonEvent):void
+      {
+        if (event.args == null)
+          return;
+        var obj:Object=event.args[0];
+        po.upgradeDate=obj.date;
+        po.upgradeReason=obj.reason;
+        list0=event.args[1] as ArrayCollection;
+        var ids:ArrayCollection=new ArrayCollection(CommonUtil.getSubArray(list0.source, ["id"]));
+        var qo:Object={persons:ids, onDate_to:obj.date, downDate_from:obj.date};
+        var f:Function=function(e1:ResultEvent):void
+          {
+            var pos:ArrayCollection=e1.result as ArrayCollection;
+            var p0:Person, p1:Person, p2:Person, p3:PsnStatus, m:Object=new Object();
+            for each (p3 in pos)
+            {
+              m[p3.personId]=p3;
+            }
+            list1=new ArrayCollection();
+            list2=new ArrayCollection();
+            for each (p0 in list0)
+            {
+              p3=m[p0.id];
+              p1=new Person(p0.id)
+              p2=new Person(p0.id);
+              p1.workerId=p2.workerId=p0.workerId;
+              p1.name=p2.name=p0.name;
+              if (p3)
+              {
+                p1.upgradeDate=p2.upgradeDate=p3.onDate;
+                p1.upgradeReason=p2.upgradeReason=p3.upgradeReason;
+                p1.type=p2.type=p3.type;
+                p1.position=p2.position=p3.position;
+                p1.fkPosition=p2.fkPosition=p3.fkPosition;
+                p1.workType=p2.workType=p3.workType;
+                p1.regBelong=p2.regBelong=p3.regBelong;
+                p1.party=p2.party=p3.party;
+                p1.grade=p2.grade=p3.grade;
+                p1.schooling=p2.schooling=p3.schooling;
+              }
+              else
+              {
+                p1.upgradeDate=p2.upgradeDate=p0.upgradeDate;
+                p1.upgradeReason=p2.upgradeReason=p0.upgradeReason;
+                p1.type=p2.type=p0.type;
+                p1.position=p2.position=p0.position;
+                p1.fkPosition=p2.fkPosition=p0.fkPosition;
+                p1.workType=p2.workType=p0.workType;
+                p1.regBelong=p2.regBelong=p0.regBelong;
+                p1.party=p2.party=p0.party;
+                p1.grade=p2.grade=p0.grade;
+                p1.schooling=p2.schooling=p0.schooling;
+              }
+              p2.equals=true;
+              list1.addItem(p1);
+              list2.addItem(p2);
+            }
+            adg1.dataProvider=list1;
+            adg1.validateNow();
+            adg2.rowHeight=adg1.rowHeight;
+            adg2.dataProvider=list2;
+            adg2.validateNow();
+          };
+        PersonalController.getPsnStatusList(qo, f);
+        init();
+      }
+
+      private function onComboBoxCreateComplete(event:Event):void
+      {
+        if (event.currentTarget is ComboBox)
+        {
+          var cbox:ComboBox=event.currentTarget as ComboBox;
+          if (cbox.listData is AdvancedDataGridListData && cbox.data is Person)
+          {
+            var listData:AdvancedDataGridListData=cbox.listData as AdvancedDataGridListData;
+            var dataField:String=listData.dataField
+            var list:Object=lists.hasOwnProperty(dataField) ? lists[dataField] : null;
+            var p:Person=cbox.data as Person;
+            cbox.dataProvider=list;
+            cbox.selectedIndex=(list != null) ? CommonUtil.indexOfKey(list, p[dataField], "label") : -1;
+            cbox.setStyle("color", colorOfPerson(cbox.data));
+          }
+        }
+      }
+
+      private function onScroll(event:Event):void
+      {
+        callLater(function():void{adg1.verticalScrollPosition=adg2.verticalScrollPosition;});
+      }
+
+      private function onItemEditEnd(event:AdvancedDataGridEvent):void
+      {
+        callLater(function():void
+          {
+            columnIndex=event.columnIndex;
+            rowIndex=event.rowIndex;
+            if (columnIndex < 0 || rowIndex < 0)
+              return;
+            var p1:Person=list1.getItemAt(rowIndex) as Person;
+            var p2:Person=list2.getItemAt(rowIndex) as Person;
+            p2.equals=equals(p1, p2);
+          });
+      }
+
+      private function styleOfPerson(data:Object, column:AdvancedDataGridColumn):Object
+      {
+        return {color:colorOfPerson(data)};
+      }
+
+      private function colorOfPerson(data:Object):uint
+      {
+        return (data && data.equals) ? Constants.Black : Constants.Blue;
+      }
+
+      private function equals(p1:Person, p2:Person):Boolean
+      {
+        return p1.type == p2.type && p1.position == p2.position && p1.regBelong == p2.regBelong
+          && p1.party == p2.party && p1.grade == p2.grade && p1.schooling == p2.schooling;
+      }
+
+      private function close(event:Event=null):void
+      {
+        dispatchEvent(CommonEvent.CLOSE_EVENT);
+      }
+
+      private function refresh(event:Event):void
+      {
+        if (columnIndex < 0 || rowIndex < 0)
+          return;
+        var column:AdvancedDataGridColumn=adg2.columns[columnIndex] as AdvancedDataGridColumn;
+        var df:String=column.dataField;
+        var header:String=column.headerText;
+        var p:Person=list2.getItemAt(rowIndex) as Person;
+        var value:String=adg2.labelFunction(p, column);
+        Alert.show(resourceManager.getString("gcc_hr", "person.update.batch.query", [header, value]), 
+          Constants.APP_NAME, Alert.YES | Alert.NO, null, function(e1:CloseEvent):void
+          {
+            if (e1.detail == Alert.YES) {
+              var i:int;
+              var p1:Person, p2:Person;
+              for (i=0; i<list2.length; i++) {
+                p1=list1[i];
+                p2=list2[i];
+                p2[df]=p[df];
+                p2.equals=(p1.departId == p2.departId && p1.office == p2.office);
+              }
+            }
+          }, Constants.ICON32_QUESTION);
+      }
+
+      private function update(event:Event):void
+      {
+        var list2:IList=CommonUtil.getGridList(adg2);
+        var i:int;
+        if (list2.length > 0)
+        {
+          if (!CommonUtil.validateForm(form, 
+            [{field:"upgradeDate", error:resourceManager.getString("gcc", "person.upgradeDate.not.null")},
+            {field:"upgradeReason", error:resourceManager.getString("gcc", "person.upgradeReason.not.null")}]))
+            return;
+          CommonUtil.loadInstance(form, po);
+          if (CommonUtil.validateGrid(adg2, ["type"], 
+            function(item:Object):void
+            {
+              if (item is Person) {
+                var p:Person=item as Person;
+                p.upgradeDate=po.upgradeDate;
+                p.upgradeReason=po.upgradeReason;
+              }
+            }).length > 0)
+            return;
+          PersonalController.updatePersonsStatus(list2.toArray(), function(e1:ResultEvent):void
+            {
+              for (var i:int=0; i < list0.length; i++)
+              {
+                list0[i].upgradeDate=po.upgradeDate;
+                list0[i].upgradeReason=po.upgradeReason;
+                list0[i].type=list2[i].type;
+                // list0[i].position=list2[i].position;
+                list0[i].fkPosition=list2[i].fkPosition;
+                list0[i].workType=list2[i].workType;
+                list0[i].regBelong=list2[i].regBelong;
+                list0[i].party=list2[i].party;
+                list0[i].grade=list2[i].grade;
+                list0[i].schooling=list2[i].schooling;
+              }
+              Alert.show(resourceManager.getString("gcc", "save.success"), Constants.APP_NAME, Alert.OK, null, function(e2:Event):void
+                {
+                  close();
+                // owner.dispatchEvent(CommonEvent.REFRESH_EVENT);
+                }, Constants.ICON32_INFO);
+            });
+        }
+      }
+    ]]>
+  </mx:Script>
+</mx:TitleWindow>

@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" width="400" height="320"
+                preinitialize="onPreinitialize()" creationComplete="onCreationComplete()">
+  <mx:Form id="form" width="100%">
+    <mx:FormItem label="{resourceManager.getString('gcc_hr', 'salFact.date')}:" enabled="{editable}">
+      <mx:DateField id="dfDate" name="date" editable="true" formatString="{Constants.DATE_FORMAT}"
+                    text="{DateUtil.formatDate(head.date, Constants.DATE_FORMAT)}" width="240"/>
+    </mx:FormItem>
+    <mx:FormItem label="{resourceManager.getString('gcc_hr', 'salFact.depart')}:"
+                 enabled="{editable}">
+      <mx:ComboBox id="cbDepart" name="depart" change="onDepartChange(event)" width="240"/>
+    </mx:FormItem>
+    <mx:FormItem label="{resourceManager.getString('gcc_hr', 'salFact.template')}:"
+                 enabled="{editable}" includeInLayout="{editable}" visible="{editable}">
+      <mx:ComboBox id="cbTemplate" name="template" labelField="name" width="240"/>
+    </mx:FormItem>
+    <mx:FormItem label="{resourceManager.getString('gcc_hr', 'salFact.issueDate')}:"
+                 enabled="{editable}">
+      <mx:DateField name="issueDate" editable="true" formatString="{Constants.DATE_FORMAT}"
+                    text="{DateUtil.formatDate(head.issueDate, Constants.DATE_FORMAT)}" width="240"/>
+    </mx:FormItem>
+    <mx:FormItem label="{resourceManager.getString('gcc_hr', 'salFact.issueType')}:"
+                 enabled="{editable}">
+      <mx:ComboBox name="issueType" dataProvider="{SalFact$Type.types}" width="240"/>
+    </mx:FormItem>
+    <mx:FormItem label="{resourceManager.getString('gcc_hr', 'salFact.summary')}:">
+      <mx:TextInput id="tiSummary" name="summary" text="{head.summary}" width="240"/>
+    </mx:FormItem>
+  </mx:Form>
+  <mx:HBox horizontalAlign="center" width="100%" paddingTop="7">
+    <mx:Button label="{resourceManager.getString('gcc', 'ok')}" click="save(event)"
+               enabled="{UserController.hrSalWrite}"/>
+    <mx:Button label="{resourceManager.getString('gcc', 'cancel')}" click="close(event)"/>
+  </mx:HBox>
+  <mx:Script>
+    <![CDATA[
+      import mx.collections.ArrayCollection;
+      import mx.controls.Alert;
+      import mx.rpc.events.ResultEvent;
+      import mx.utils.ObjectUtil;
+
+      import com.gc.Constants;
+      import com.gc.CommonEvent;
+      import com.gc.common.controller.UserController;
+      import com.gc.common.controller.BaseController;
+      import com.gc.common.model.Department;
+      import com.gc.hr.controller.CommonController;
+      import com.gc.hr.controller.SalaryController;
+      import com.gc.hr.model.SalFact;
+      import com.gc.hr.model.SalFact$Type;
+      import com.gc.hr.model.SalItem;
+      import com.gc.hr.model.SalTemplate;
+      import com.gc.util.CommonUtil;
+      import com.gc.util.DateUtil;
+
+      private var op:String;
+      [Bindable]
+      private var editable:Boolean=false;
+      [Bindable]
+      private var head:SalFact; // 当前add/edit的工资凭证, SalFact(fetched: depart, issuer)
+
+      private function onPreinitialize():void
+      {
+        addEventListener(CommonEvent.CREATED, onCreated);
+      }
+
+      private function onCreationComplete():void
+      {
+        cbDepart.dataProvider=BaseController.departmentList;
+        cbDepart.enabled=UserController.hrHead;
+      }
+
+      private function onDepartChange(e:Event=null):void
+      {
+        var depart:Department=cbDepart.selectedItem as Department;
+        if (depart)
+        {
+          SalaryController.getTemplates(depart.branchId, depart.id, function(e1:ResultEvent):void
+            {
+              cbTemplate.dataProvider=e1.result;
+            });
+        }
+      }
+
+      private function onCreated(e:CommonEvent):void
+      {
+        head=e.args && e.args.length > 0 ? ObjectUtil.copy(e.args[0]) as SalFact : new SalFact();
+        op=head.no ? Constants.OP_EDIT : Constants.OP_ADD;
+        editable=(op == Constants.OP_ADD) ? true : false;
+        var index:int=-1;
+        if (op == Constants.OP_ADD)
+        {
+          title=resourceManager.getString("gcc_hr", "salFact.add1");
+          index=CommonUtil.indexOfKey(BaseController.departmentList, UserController.hrDepart);
+          dfDate.setFocus();
+          head.id.branch=UserController.branch;
+          head.issuer=UserController.person;
+          head.issueDate=new Date();
+        }
+        else if (op == Constants.OP_EDIT)
+        {
+          title=resourceManager.getString("gcc_hr", "salFact.edit", [head.departName, head.no]);
+          index=CommonUtil.indexOfKey(BaseController.departmentList, head.depart);
+          tiSummary.setFocus();
+        }
+        callLater(function():void{cbDepart.selectedIndex=index;});
+      }
+
+      private function load(e:ResultEvent):void
+      {
+        var persons:ArrayCollection=e.result.persons;
+        var items:ArrayCollection=e.result.items; // 工资凭证的项目列表
+        var head_old:SalFact=e.result.head;
+        var _data:ArrayCollection=e.result.data; // 当前edit/view的模板明细[{person:p1, dts:[d11, ..., d1n], sfos:[sfo11, ..., sfo1n]}, ..., {person:pn, dts:[dn1, ..., dnn], sfos:[sfon1, ..., sfonn]}]
+        var si:SalItem, n:String, s:String="", error:String=null;
+        var rr:Object=SalItem.validate(items, [SalItem.EVALF_ITEMS]);
+        var f:Function=function():void
+          {
+            CommonUtil.popupWindow(FactVoucher, "", owner, [persons, items, head, _data, head_old, op, rr, error]);
+            close();
+          };
+        // 检查工资项目是否完整, 是否有公式的依赖项目没有包含, 建议T_HRSAL_ITEM限制项目被引用后不可修改公式
+        if (!rr.valid)
+        {
+          for (n in rr.error)
+          {
+            s=rr.error[n];
+            break;
+          }
+          error=(op == Constants.OP_ADD) ? resourceManager.getString("gcc_hr", "salFact.add.error.missing.items", [cbTemplate.text, s])
+            : (op == Constants.OP_EDIT) ? resourceManager.getString("gcc_hr", "salFact.edit.error.missing.items", [head.no, s]) : null;
+        }
+        // 检查工资项目的有效期是否包含凭证的所属日期
+        if (!error)
+        {
+          n=DateUtil.formatDate(head.date);
+          for each (si in items)
+          {
+            if (si.onDate > head.date)
+            {
+              error=(op == Constants.OP_ADD) ? resourceManager.getString("gcc_hr", "salFact.add.error.not.on", [n, si.name, DateUtil.formatDate(si.onDate)])
+                : (op == Constants.OP_EDIT) ? resourceManager.getString("gcc_hr", "salFact.edit.error.not.on", [head.no, n, si.name, DateUtil.formatDate(si.onDate)]) : null;
+              break;
+            }
+            else if (si.downDate < head.date)
+            {
+              error=(op == Constants.OP_ADD) ? resourceManager.getString("gcc_hr", "salFact.add.error.has.down", [n, si.name, DateUtil.formatDate(si.onDate)])
+                : (op == Constants.OP_EDIT) ? resourceManager.getString("gcc_hr", "salFact.edit.error.has.down", [head.no, n, si.name, DateUtil.formatDate(si.onDate)]) : null;
+              break;
+            }
+          }
+        }
+        if (!error)
+        {
+          if (head.issueDate < CommonController.lastCloseDate)
+          {
+            if (op == Constants.OP_EDIT)
+            {
+              error=resourceManager.getString("gcc_hr", "salFact.edit.error.before.closeDate", 
+                [head.no, DateUtil.formatDate(head.issueDate), DateUtil.formatDate(CommonController.lastCloseDate)]);
+            }
+          }
+        }
+        if (error)
+        {
+          if (op == Constants.OP_ADD)
+          {
+            Alert.show(error, Constants.APP_NAME, Alert.OK, null, null, Constants.ICON32_ERROR);
+            return;
+          }
+          else if (op == Constants.OP_EDIT)
+          {
+            // op = Constants.OP_VIEW;
+            Alert.show(error, Constants.APP_NAME, Alert.OK, null, function(e1:Event):void{f();}, Constants.ICON32_WARNING);
+          }
+        }
+        else
+        {
+          f();
+        }
+      }
+
+      private function save(e:Event):void
+      {
+        var fields:Array=(op == Constants.OP_ADD) ? ["date", "depart", "template", "issueDate", "issueType"]
+          : (op == Constants.OP_EDIT) ? ["date", "depart", "issueDate", "issueType"] : [];
+        if (!CommonUtil.validateForm(form, fields))
+          return;
+        CommonUtil.loadInstance(form, head);
+        if (head.issueDate < CommonController.lastCloseDate)
+        {
+          if (op == Constants.OP_ADD)
+          {
+            Alert.show(resourceManager.getString("gcc_hr", "salFact.add.error.before.closeDate", 
+              [DateUtil.formatDate(head.issueDate), DateUtil.formatDate(CommonController.lastCloseDate)]),
+              Constants.APP_NAME, Alert.OK, null, null, Constants.ICON32_ERROR);
+            return;
+          }
+        }
+        var template:Object=cbTemplate.selectedItem;
+        if (op == Constants.OP_ADD)
+          SalaryController.createFactPersonsAndItems({head:head, template:template}, load);
+        else if (op == Constants.OP_EDIT)
+          SalaryController.getFactPersonsAndItems(head, load);
+      }
+
+      private function close(e:Event=null):void
+      {
+        dispatchEvent(CommonEvent.CLOSE_EVENT);
+      }
+    ]]>
+  </mx:Script>
+</mx:TitleWindow>

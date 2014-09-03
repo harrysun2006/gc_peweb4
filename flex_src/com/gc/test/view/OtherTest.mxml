@@ -1,0 +1,804 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:gc="com.gc.controls.*" width="100%"
+           height="100%" initialize="onInitialize()">
+  <mx:Grid paddingLeft="10" paddingTop="10">
+    <mx:GridRow>
+      <mx:GridItem toolTip="Using resourceManager!">
+        <mx:Label text="{resourceManager.getString('gcc', 'test.ui.label1')}" styleName="red"/>
+        <mx:Label text="{resourceManager.getString('gcc', 'test.ui.label2', ['Harry Sun'])}"
+                  styleName="red"/>
+      </mx:GridItem>
+    </mx:GridRow>
+    <mx:GridRow>
+      <mx:GridItem toolTip="Using @Resource!">
+        <mx:Label text="@Resource(bundle='gcc', key='test.ui.label1')" styleName="red"/>
+        <mx:Label text="@Resource(bundle='gcc', key='test.ui.label2')" styleName="red"/>
+      </mx:GridItem>
+    </mx:GridRow>
+    <mx:GridRow>
+      <mx:GridItem>
+        <mx:Box width="113" height="175" styleName="box">
+          <gc:ByteArrayImage id="img" width="100%" height="100%"/>
+        </mx:Box>
+        <mx:Image id="img31" source="{ChkHoliday.ICON}"/>
+      </mx:GridItem>
+    </mx:GridRow>
+    <mx:GridRow>
+      <mx:GridItem>
+        <mx:ComboBox id="cbLocale" dataProvider="{locales}" change="localeChangeHandler()"
+                     styleName="red"/>
+        <mx:Button label="{resourceManager.getString('gcc', 'test.function.change_language')}"
+                   toolTip="Use [ResourceBundle()] TAG!" click="test5()" styleName="blue"/>
+        <mx:Button label="{resourceManager.getString('gcc', 'test.function.change_language')}"
+                   toolTip="Use compiled resource modules!" click="test6()" styleName="blue"/>
+        <mx:Button label="{resourceManager.getString('gcc', 'test.function.change_language')}"
+                   toolTip="Load programmatically!" click="test7()" styleName="blue"/>
+      </mx:GridItem>
+    </mx:GridRow>
+    <mx:GridRow>
+      <mx:GridItem>
+        <mx:Button label="Test01" toolTip="Get Singletone Instances" click="test1()"/>
+        <mx:Button label="Test02" toolTip="New Singleton Instance" click="test2()"/>
+        <mx:Button label="Test03" toolTip="Map" click="test3()"/>
+        <mx:Button label="Test04" toolTip="Query String" click="test4()"/>
+        <mx:Button label="Test08" toolTip="Embedded" click="test8()"/>
+        <mx:FormItem label="Test DateField: ">
+          <mx:DateField id="shipDateFrom" width="160" editable="false"/>
+        </mx:FormItem>
+      </mx:GridItem>
+    </mx:GridRow>
+    <mx:GridRow>
+      <mx:GridItem>
+        <mx:Button label="Test09" toolTip="Dynamic Map" click="test9()"/>
+        <mx:Button label="Test11" toolTip="Properties" click="test11()"/>
+        <mx:Button label="Test12" toolTip="CommonUtil.getAccessorType" click="test12()"/>
+        <mx:Button label="Test13" toolTip="Parameters" click="test13()"/>
+        <mx:Button label="Test15" toolTip="URLs" click="test15()"/>
+        <gc:HTMLButton styleName="blue"
+                       htmlLabel="&lt;font color=&quot;#FF0000&quot;&gt;&lt;u&gt;HTML Red Button&lt;/u&gt;&lt;/font&gt;"/>
+        <gc:HTMLButton>
+          <gc:htmlLabel>
+            <![CDATA[<font color="#FF0000"><u>HTML Red Button</u></font>]]>
+          </gc:htmlLabel>
+        </gc:HTMLButton>
+      </mx:GridItem>
+    </mx:GridRow>
+    <mx:GridRow>
+      <mx:GridItem>
+        <mx:TextInput id="tiCommand"/>
+        <mx:Button label="Test16" toolTip="Socket" click="test16()"/>
+        <mx:Button label="Test17" toolTip="Serialize" click="test17()"/>
+        <mx:Button label="Test18" toolTip="ByteArray &amp; BitmapData" click="test18A()"/>
+        <mx:Button label="Test19" toolTip="Dynamic" click="test19()"/>
+        <mx:Button label="Test20" toolTip="Alias" click="test20()"/>
+        <mx:Button label="Test21" toolTip="for each" click="test21()"/>
+      </mx:GridItem>
+    </mx:GridRow>
+    <mx:GridRow>
+      <mx:GridItem>
+        <mx:Button id="btn22" label="Test22" toolTip="Style Property" click="test22()"/>
+        <mx:Button label="Test23" toolTip="is" click="test23()"/>
+        <mx:Button label="Test26" toolTip="getDefinitionByName" click="test26()"/>
+        <mx:Button label="Test27" toolTip="Resource Bundle" click="test27()"/>
+        <mx:Button label="Test28" toolTip="ObjectProxy" click="test28()"/>
+        <mx:Button label="Test29" toolTip="DateUtil" click="test29()"/>
+        <mx:Button label="Test30" toolTip="for[each]" click="test30()"/>
+        <mx:Button id="btn32" label="Test32" toolTip="icon"
+                   icon="{IconUtil.getRectangleIcon(btn32, ChkHoliday.bgColor)}"/>
+      </mx:GridItem>
+    </mx:GridRow>
+    <mx:GridRow>
+      <mx:GridItem>
+        <mx:Button label="Test33" toolTip="const" click="test33()"/>
+        <mx:Button label="Test34" toolTip="ObjectUtil.copy &amp; compare" click="test34()"/>
+      </mx:GridItem>
+    </mx:GridRow>
+  </mx:Grid>
+  <mx:AdvancedDataGrid id="adg" editable="false" visible="false" includeInLayout="false">
+    <mx:columns>
+      <mx:AdvancedDataGridColumn dataField="no"/>
+      <mx:AdvancedDataGridColumn dataField="name"/>
+    </mx:columns>
+  </mx:AdvancedDataGrid>
+  <mx:Script>
+    <![CDATA[
+      import bee.eval.Ident;
+      import flash.utils.getQualifiedClassName;
+
+      import mx.collections.ArrayCollection;
+      import mx.controls.AdvancedDataGrid;
+      import mx.controls.Alert;
+      import mx.controls.Label;
+      import mx.core.Application;
+      import mx.core.BitmapAsset;
+      import mx.core.ByteArrayAsset;
+      import mx.core.Container;
+      import mx.core.mx_internal;
+      import mx.core.UIComponent;
+      import mx.events.ResourceEvent;
+      import mx.resources.ResourceBundle;
+      import mx.resources.ResourceManager;
+      import mx.utils.Base64Encoder;
+      import mx.utils.DescribeTypeCache;
+      import mx.utils.ObjectProxy;
+      import mx.utils.ObjectUtil;
+      import mx.utils.StringUtil;
+      import mx.utils.UIDUtil;
+      import mx.utils.URLUtil;
+
+      import org.swizframework.Swiz;
+
+      import com.gc.Constants;
+      import com.gc.common.model.Branch;
+      import com.gc.common.model.Department;
+      import com.gc.common.model.Person;
+      import com.gc.hr.controller.PersonalController;
+      import com.gc.hr.model.ChkHoliday;
+      import com.gc.hr.model.People;
+      import com.gc.hr.model.SalItem$Type;
+      import com.gc.hr.model.SalItem$Flag;
+      import com.gc.hr.model.SalFact$Type;
+      import com.gc.hr.model.SalFact;
+      import com.gc.hr.model.HireType;
+      import com.gc.hr.model.HrClose;
+      import com.gc.test.model.EmbedTest;
+      import com.gc.test.model.TestA;
+      import com.gc.test.model.TestB;
+      import com.gc.util.CommonUtil;
+      import com.gc.util.DateUtil;
+      import com.gc.util.ExprUtil;
+      import com.gc.util.IconUtil;
+
+      use namespace mx_internal;
+
+      private function onInitialize():void
+      {
+        lang=cbLocale.selectedItem.toString();
+        // cbLocale.selectedIndex=locales.indexOf(resourceManager.localeChain[0]);
+        resourceManager.localeChain=[cbLocale.selectedItem];
+        open();
+      }
+
+      /**
+       * 测试类SalFactHD$Type, SalItem$Flag, SalItem$Type的枚举常量和方法
+       **/
+      private function test1():void
+      {
+        var items:Array=SalFact$Type.types;
+        var s:String="";
+        var i:int;
+        for (i=0; i < items.length; i++)
+          s=s + items[i].valueOf() + ", ";
+        s=s + "\n";
+        items=SalItem$Flag.flags;
+        for (i=0; i < items.length; i++)
+          s=s + items[i].valueOf() + ", ";
+        s=s + "\n";
+        items=SalItem$Type.types;
+        for (i=0; i < items.length; i++)
+          s=s + items[i].valueOf() + ", ";
+        s=s + "\n";
+        s=s + "SalFactHD$Type.CASH=" + SalFact$Type.CASH.valueOf() + "\n";
+        s=s + "SalItem$Flag.POS=" + SalItem$Flag.POS.valueOf() + "\n";
+        s=s + "SalItem$Type.WG=" + SalItem$Type.WG.valueOf() + "\n";
+        trace(s);
+      }
+
+      /**
+       * 测试类SalFactHD$Type, SalItem$Flag, SalItem$Type的构造函数
+       **/
+      private function test2():void
+      {
+        try
+        {
+          var t1:SalFact$Type=new SalFact$Type("ABC", "abc");
+        }
+        catch (e:Error)
+        {
+          trace(e.message);
+        }
+        try
+        {
+          var f:SalItem$Flag=new SalItem$Flag(123, "test");
+        }
+        catch (e:Error)
+        {
+          trace(e.message);
+        }
+        try
+        {
+          var t2:SalItem$Type=new SalItem$Type("XYZ", "xyz");
+        }
+        catch (e:Error)
+        {
+          trace(e.message);
+        }
+      }
+
+      /**
+       * dynamic类(如Object)的实例可以作为map使用
+       **/
+      private function test3():void
+      {
+        var map:Object=new Object();
+        map["name"]="Hello World";
+        map["value"]="Harry Sun";
+        trace(map["value"]);
+      }
+
+      /**
+       * url的QueryString参数可以通过Application.application.parameters访问
+       **/
+      private function test4():void
+      {
+        var s:String="";
+        for (var name:String in Application.application.parameters)
+          s=s + name + "=" + Application.application.parameters[name] + "\n";
+        trace(s);
+      }
+
+      [Bindable]
+      private var locales:Array=["zh_CN", "en_US"];
+      private var lang:String;
+
+      private function localeChangeHandler():void
+      {
+        this.lang=cbLocale.selectedItem.toString();
+      }
+
+      /**
+       * 多国语言
+       **/
+      private function test5():void
+      {
+        resourceManager.localeChain=[lang];
+        trace(resourceManager.getString("gcc", "test.info.msg1"));
+      }
+
+      /**
+       * 参考locale/README.TXT
+       * 1) 编译flex中文语言包: (在Flex Builder 3.2.0\sdks\3.2.0目录下)
+       * compc -locale=zh_CN -source-path=frameworks\projects\framework\bundles\zh_CN\src -include-resource-bundles=collections,
+       * 		containers,controls,core,effects,formatters,logging,SharedResources,skins,states,styles,utils,validators
+       * 		-output=frameworks/locale/zh_CN/framework_rb.swc
+       * 2) 编译应用程序资源:
+       * mxmlc -locale=en_US -source-path=locale/{locale} -include-resource-bundles=collections,containers,controls,core,effects,
+       * 		gcc,skins,styles -output=flex_src/gcc_en_US.swf
+       * mxmlc -locale=zh_CN -source-path=locale/{locale} -include-resource-bundles=collections,containers,controls,core,effects,
+       * 		gcc,skins,styles -output=flex_src/gcc_zh_CN.swf
+       **/
+      private function test6():void
+      {
+        var url:String="../gcc_" + lang + ".swf";
+        var eventDispatcher:IEventDispatcher=resourceManager.loadResourceModule(url);
+        eventDispatcher.addEventListener(ResourceEvent.COMPLETE, function(event:ResourceEvent):void
+          {
+            resourceManager.localeChain=[lang];
+            trace(resourceManager.getString("gcc", "test.info.msg1"));
+          });
+      }
+
+      private function test7():void
+      {
+        var rb1:ResourceBundle=new ResourceBundle("en_US", "gcc");
+        rb1.content["test.ui.label1"]="***Hello World!***";
+        rb1.content["test.ui.label2"]="***Welcome {0}!***";
+        rb1.content["test.info.msg1"]="***Good good study, day day up!!!***";
+        rb1.content["test.function.change_language"]="***Change Language!***";
+        resourceManager.addResourceBundle(rb1);
+        var rb2:ResourceBundle=new ResourceBundle("zh_CN", "gcc");
+        rb2.content["test.ui.label1"]="***大家好！***";
+        rb2.content["test.ui.label2"]="***欢迎{0}！***";
+        rb2.content["test.info.msg1"]="***好好学习，天天向上！！！***";
+        rb2.content["test.function.change_language"]="***改变语言!***";
+        resourceManager.addResourceBundle(rb2);
+        resourceManager.update();
+        resourceManager.localeChain=[lang];
+        trace(resourceManager.getString("gcc", "test.info.msg1"));
+      }
+
+      /**
+       * 嵌入资源
+       **/
+      private function test8():void
+      {
+        var e:EmbedTest=new EmbedTest();
+        debugByteArray(e, false);
+      }
+
+      private function test9():void
+      {
+        var map:Object=new Object();
+        var A:HireType=new HireType(new Branch(1), "合同");
+        var B:HireType=new HireType(new Branch(1), "合同");
+        var C:HireType=new HireType(new Branch(2), "合同");
+        var p1:People=new People();
+        var p2:People=new People();
+        var coll:ArrayCollection=new ArrayCollection();
+        var arr:Array=["X", "Y", "Z"];
+        coll.addItem("x");
+        coll.addItem("y");
+        coll.addItem("z");
+        map[A]="AAA";
+        map[C]="CCC";
+        map[1]=111;
+        map[2]=222;
+        p1["children"]=coll;
+        p2["children"]=arr;
+        trace("map[B] = " + map[B] + "; map[1] = " + map[1]);
+        trace("A==B ? " + (A == B) + "; A==C ? " + (A == C));
+        trace("map[X] = " + map["X"] + "; map[X]==null ? " + (map["X"] == null));
+        trace("p1[children] = " + p1["children"]);
+        trace("p2[children] = " + p2["children"]);
+        var b1:Branch=new Branch(1);
+        var b2:Branch=new Branch(2, "", "");
+        var d1:Department=new Department(1, b1, "");
+        trace("b1=" + b1 + "; b2=" + b2);
+        trace("d1=" + d1);
+        trace("一车队<二车队:" + ("一车队" < "二车队") + "; 二车队<三车队:" + ("二车队" < "三车队") + "; 一车队<三车队:" + ("一车队" <
+          "三车队"));
+      }
+
+      private function test10(src:Object, name:String):Object
+      {
+        var crObj:Class=getDefinitionByName(name) as Class;
+        var ret:Object=new crObj();
+        var names:Array=new Array();
+        var accessors:Object=CommonUtil.getAccessors(ret, names);
+        var items:Array=CommonUtil.getItems(src);
+        var item:Object;
+        var s:String="";
+        var i:int;
+        for (i=0; i < names.length; i++)
+        {
+          s=s + names[i] + ":" + accessors[names[i]] + "\n";
+        }
+        trace(s);
+        s="";
+        for (i=0; i < items.length; i++)
+        {
+          item=items[i];
+          s=s + item[Constants.PROP_NAME_NAME] + "=" + item[Constants.PROP_NAME_VALUE] + "\n";
+        }
+        trace(s);
+        return ret;
+      }
+
+      // 显式属性和隐式属性使用同一个存储空间
+      private function test11():void
+      {
+        var b:Branch=new Branch();
+        b["name"]="Hello World";
+        b.name="徐州市公共交通有限责任公司";
+        trace(b.name);
+        trace(b["name"]);
+      }
+
+      private function test12():void
+      {
+        trace(CommonUtil.getAccessorType(Person, "birthday"));
+        trace(CommonUtil.getAccessorType(new Person(), "birthday"));
+        trace(Application.application.url);
+        trace("http://{server.name}:{server.port}");
+        var obj:Object={"name": "Harry Sun"};
+        trace(obj["name"]);
+      }
+
+      private function test13():void
+      {
+        var sum:int;
+        test13B(1, 5, sum);
+        trace(sum);
+      }
+
+      private function test13B(x:int, y:int, sum:int):void
+      {
+        sum=x+y;
+      }
+
+      private function test15():void
+      {
+        trace(Application.application.url);
+        trace(Application.application.loaderInfo.url);
+        trace(Constants.APPLICATION_URL);
+        trace(Constants.SERVER_PORT);
+        trace(Constants.SERVER_PROTOCOL);
+        trace(CommonUtil.getFullURL("/hr/test1.html"));
+        trace(CommonUtil.getFullURL("hr/test2.jsp"));
+        trace(CommonUtil.getFullURL("/hr/test3?id=1&name=Harry"));
+        trace(CommonUtil.getFullURL("test4?id=2&name=May"));
+        trace(CommonUtil.getFullURL("http://www.google.com/test5.html"));
+        trace(CommonUtil.getFullURL("http://localhost/index.swf?username=hr1&password=0000&module=hr&branch=gjgs"));
+        trace(CommonUtil.getFullURL(""));
+        trace(CommonUtil.getFullURL("ftp://ftp.synventive.cn/test.doc"));
+        trace(URLUtil.getFullURL(Constants.APPLICATION_URL, "ftp://ftp.synventive.cn/test.doc"));
+      }
+
+      private var socket:Socket;
+
+      private function open():void
+      {
+        socket=new Socket();
+        socket.addEventListener(Event.CLOSE, function(e:Event):void
+          {
+            trace("Closed: " + e);
+          });
+        socket.addEventListener(Event.CONNECT, function(e:Event):void
+          {
+            trace("Connected: " + e);
+          });
+        socket.addEventListener(IOErrorEvent.IO_ERROR, function(e:IOErrorEvent):void
+          {
+            trace("IO ERROR: " + e.text);
+          });
+        socket.addEventListener(SecurityErrorEvent.SECURITY_ERROR, function(e:SecurityErrorEvent):void
+          {
+            trace("Security ERROR:" + e.text);
+          });
+        socket.addEventListener(ProgressEvent.SOCKET_DATA, function(e:ProgressEvent):void
+          {
+            var b:Array=[];
+            while (socket.bytesAvailable)
+            {
+              b.push(socket.readMultiByte(socket.bytesAvailable, "utf8"));
+            }
+            var t:String = b.join('').replace(/\r/g, '');
+            trace(t);
+          });
+        socket.connect("localhost", 843);
+      }
+
+      private function test16():void
+      {
+        socket.writeMultiByte(tiCommand.text, "utf8");
+        socket.flush();
+      }
+
+      private function test17():void
+      {
+        var qo:Person=new Person();
+        qo.downStatus=Person.DOWN_STATUS_NO;
+        qo.depart=new Department(2);
+        var b:ByteArray = new ByteArray();
+        b.writeObject(qo);
+        var e:Base64Encoder=new Base64Encoder();
+        e.encodeBytes(b);
+        trace(e.drain());
+      }
+
+      [Embed(source="test.jpg",mimeType="application/octet-stream")]
+      private var testClass:Class;
+
+      private function test18A():void
+      {
+        var test:Object=new testClass();
+        var bytes:ByteArray=new ByteArray();
+        var baa:ByteArrayAsset=ByteArrayAsset(test);
+        baa.readBytes(bytes, 0, baa.length);
+        debugByteArray(bytes);
+        img.loadBytes(bytes);
+      }
+
+      private function test18B():void
+      {
+        var loader:URLLoader=new URLLoader();
+        loader.addEventListener(Event.COMPLETE, function(event:Event):void {
+            var bytes:ByteArray=loader.data as ByteArray;
+            debugByteArray(bytes);
+            img.loadBytes(bytes);
+          });
+        var req:URLRequest=new URLRequest("test.jpg");
+        loader.dataFormat=URLLoaderDataFormat.BINARY;
+        loader.load(req);
+      }
+
+      /**
+       * 输出ByteArray的十六进制值
+       **/
+      private static function debugByteArray(bytes:ByteArray, simple:Boolean=true):void
+      {
+        var s:String="", h:String;
+        var b:uint;
+        var i:int=0, p:int=bytes.position;
+        trace("length: " + bytes.length); // 53562
+        bytes.position=0;
+        while (bytes.bytesAvailable > 0)
+        {
+          i++;
+          b=bytes.readByte();
+          h=b.toString(16);
+          h=(h.length < 2) ? "0" + h : h.substr(h.length-2, 2);
+          s=s + h.toUpperCase() + " ";
+          if (i%16==0)
+            s=s + "\n";
+          if (i==16 && simple)
+          {
+            s=s + "... ...\n";
+            bytes.position=int(bytes.length / 16) * 16;
+            simple=false;
+          }
+        }
+        trace(s);
+        bytes.position=p;
+      }
+
+      private function test19():void
+      {
+        trace(CommonUtil.isDynamic(Person.DEFAULT_SEARCH));
+      }
+
+      private function test20():void
+      {
+        trace(CommonUtil.getAlias(Person));
+      }
+
+      private function test21():void
+      {
+        var arr:Array=['A', 'B', 'C', 'D', 'E', 'F'];
+        for (var i:int = 0; i < arr.length; i++)
+          trace(arr[i]);
+        for each (var o:String in arr)
+          trace(o);
+      }
+
+      private function test22():void
+      {
+        var names:Array=["color", "backgroundImage", "paddingLeft"];
+        var comps:Array=[btn22, new Label()];
+        for each (var comp:UIComponent in comps)
+        {
+          for each (var name:String in names)
+          {
+            trace(comp.className + "." + name + ":" + StyleManager.isInheritingStyle(name)
+              // + ":" + StyleManager.isValidStyleValue(comp[name])
+              + ":" + comp.getClassStyleDeclarations()
+              + ":" + comp.getStyle(name)
+              + ":" + comp.inheritingStyles.hasOwnProperty(name)
+              + ":" + (name in comp.inheritingStyles)
+              + ":" + comp.nonInheritingStyles.hasOwnProperty(name)
+              + ":" + (name in comp.nonInheritingStyles)
+              + ":" + comp.styleDeclaration
+              + ":" + comp.styleName
+              + ":" + comp.inheritingStyles
+              + ":" + comp.nonInheritingStyles
+              );
+          }
+        }
+
+      }
+
+      private function test23():void
+      {
+        var obj:String=null;
+        trace(obj is Object);
+        trace(obj is String);
+        trace(obj is Number);
+        var d:Date=obj as Date;
+        trace(d);
+      }
+
+      /**
+       * 输出控件的大小和位置信息
+       **/
+      private function test24(comp:UIComponent):void
+      {
+        var s:String=comp + "[width: " + comp.width
+          + ", explicitWidth: " + comp.explicitWidth;
+        if (comp is Container)
+        {
+          var con:Container=comp as Container;
+          s+=", viewMetrics: [" + con.viewMetrics.left
+            + ", " + con.viewMetrics.top
+            + ", " + con.viewMetrics.right
+            + ", " + con.viewMetrics.bottom + "]"
+            + ", borderMetrics: [" + con.borderMetrics.left
+            + ", " + con.borderMetrics.top
+            + ", " + con.borderMetrics.right
+            + ", " + con.borderMetrics.bottom + "]";
+        }
+        s+=", getVisibleRect().width: " + comp.getVisibleRect().width
+          + ", getBounds(parent).width: " + comp.getBounds(comp.parent).width
+          + ", getRect(parent).width: " + comp.getRect(comp.parent).width
+          + ", getBounds(owner).width: " + comp.getBounds(comp.owner).width
+          + ", getRect(owner).width: " + comp.getRect(comp.owner).width
+          + "]";
+        trace(s);
+      }
+
+      /**
+       * 输出对象的详细信息
+       **/
+      private function test25(obj:Object, namespaceURIs:Array=null, exclude:Array=null):void
+      {
+        if (namespaceURIs==null)
+          namespaceURIs=["mx_internal", "mx_object"];
+        trace(ObjectUtil.toString(obj, namespaceURIs, exclude));
+      }
+
+      private function test26():void
+      {
+        var types:Array=["com.gc.common.model::Branch", 
+          "com.gc.hr.model::HireType", "com.gc.hr.model::HireTypePK",
+          "com.gc.hr.model::HrClose", "com.gc.hr.model::HrClosePK",
+          ];
+        for each (var type:String in types)
+        {
+          try
+          {
+            var crObj:Class=getDefinitionByName(type) as Class;
+            trace(type + ": " + new crObj());
+          }
+          catch (err:Error)
+          {
+            trace(type + ": " + err);
+          }
+        }
+      }
+
+      private function test27():void
+      {
+        trace(resourceManager.getString("gcc", "test.ui.label2"));
+      }
+
+      private function test28():void
+      {
+        var qo:Object=new ObjectProxy();
+        qo["workerId"]="88";
+        trace(qo["workerId"]);
+        trace(qo.hasOwnProperty("workerId"));
+      }
+
+      private function test29():void
+      {
+        var dates:Array=[new Date(2012, 1, 10, 0, 0, 0), new Date(2009, 11, 31, 23, 59, 59)
+          , new Date(2009, 1, 7, 12, 12, 12)];
+        var field:int=DateUtil.MONTH;
+        var s:String;
+        var date:Date;
+        for each (date in dates)
+        {
+          s=DateUtil.formatDateTime(date)
+            + ": " + DateUtil.formatDateTime(DateUtil.getBeginDate(date, field))
+            + ", " + DateUtil.formatDateTime(DateUtil.getEndDate(date, field));
+          trace(s);
+        }
+        dates=[new Date(2000, 0, 1, 0, 0, 0), new Date(2012, 11, 31, 23, 59, 59)];
+        field=DateUtil.YEAR;
+        for each (date in dates)
+        {
+          s=DateUtil.formatDateTime(date)
+            + ": " + DateUtil.formatDateTime(DateUtil.getBeginDate(date, field))
+            + ", " + DateUtil.formatDateTime(DateUtil.getEndDate(date, field));
+          trace(s);
+        }
+        dates=[new Date(2009, 4, 7), new Date(2009, 10, 7)];
+        for each (date in dates)
+        {
+          s=DateUtil.formatDateTime(date)
+            + ": " + DateUtil.getWeeksOfMonth(date, 0)
+            + " weeks(0), " + DateUtil.getWeeksOfMonth(date, 1) + " weeks(1).";
+          trace(s);
+        }
+        dates=[new Date(2009, 4, 3), new Date(2009, 4, 31), new Date(2009, 10, 6), new Date(2009, 10, 30)];
+        for each (date in dates)
+        {
+          s=DateUtil.formatDateTime(date)
+            + ": " + DateUtil.getWeekByMonth(date, 0)
+            + " week(0), " + DateUtil.getWeekByMonth(date, 1) + " week(1).";
+          trace(s);
+        }
+        dates=[new Date(2000, 1, 1), new Date(2009, 1, 1), new Date(2012, 1, 1), new Date(2100, 1, 1)];
+        for each (date in dates)
+        {
+          s=DateUtil.formatDateTime(date)
+            + ": " + DateUtil.getDaysOfYear(date)
+            + " days, " + DateUtil.getDaysOfYear(date) + " days.";
+          trace(s);
+        }
+        dates=[new Date(2000, 6, 7), new Date(2009, 6, 7), new Date(2012, 6, 7)];
+        for each (date in dates)
+        {
+          s=DateUtil.formatDateTime(date)
+            + ": " + DateUtil.getWeeksOfYear(date, 0)
+            + " weeks(0), " + DateUtil.getWeeksOfYear(date, 1) 
+            + " weeks(1), " + DateUtil.getWeekByYear(date, 0)
+            + " week(0), " + DateUtil.getWeekByYear(date, 1) + " week(1).";
+          trace(s);
+        }
+        dates=[new Date(2009, 6, 7, 7, 7, 7, 7)];
+        for each (date in dates)
+        {
+          s=DateUtil.formatDateTime(date)
+            + ": " + DateUtil.formatDateTime(DateUtil.add(date))
+            + " (1), " + DateUtil.formatDateTime(DateUtil.sub(date)) + " (-1).";
+          trace(s);
+        }
+      }
+
+      private function test30():void
+      {
+        var data:Object={name: "Harry Sun", gender: "Male", age: 34};
+        for each (var value:Object in data)
+          trace(value);
+        for (var name:Object in data)
+          trace(name + "=" + data[name]);
+      }
+
+      private function test33():void
+      {
+        var obj:Object=new Object();
+        obj.date=Constants.MAX_DATE;
+        trace("Constants.MAX_DATE: " + DateUtil.formatDateTime(Constants.MAX_DATE));
+        trace("obj.date: " + DateUtil.formatDateTime(obj.date));
+        obj.date.date++;
+        trace("Constants.MAX_DATE: " + DateUtil.formatDateTime(Constants.MAX_DATE));
+        trace("obj.date: " + DateUtil.formatDateTime(obj.date));
+      }
+
+      /**
+       * Flex的dataProvider会自动对list中的每个对象增加UID属性(mx_internal_id), 通过以下方法之一可以避免:
+       * 1. 对象中至少有一个Bindable的属性(似乎不行)
+       * 2. 对象实现IUID接口
+       * 3. 对象有一个非null值的uid属性
+       * 注意:
+       * 1. 为了使ObjectUtil.copy() as可以正确转换类型, 类必须使用[RemoteClass(alias="com.test.TestA")]修饰
+       * 2. descObj中, bindable及get/set属性可以通过accessor标签查找, 其他属性可以通过variable标签查找, CommonUtil.getAccessorNames只返回所有的accessor
+       * http://blog.feihoo.com/archives/tag/flex
+       **/
+      private function test34():void
+      {
+        var arr1:Array=[{id:1, name:"test1"}, {id:2, name:"test2", uid:999}, new TestA(3, "test3"), new TestB(4, "test4")];
+        var arr2:Array=ObjectUtil.copy(arr1) as Array;
+        var f1:Function=function(obj:Object):String
+          {
+            var s:String="";
+            var p:String;
+            var names:Array=new Array(); // CommonUtil.getAccessorNames(obj);
+            var descObj:XML=DescribeTypeCache.describeType(obj).typeDescription;
+            var accessors:XMLList=descObj..accessor;
+            var variables:XMLList=descObj..variable;
+            for each (var accessor:Object in accessors)
+            {
+              names.push(accessor.@name.toString());
+            }
+            for each (var variable:Object in variables)
+            {
+              names.push(variable.@name.toString());
+            }
+            for (p in obj) s+=p+":"+obj[p]+", ";
+            for each (p in names) s+=p+":"+obj[p]+", ";
+            if (s.length > 0) s=s.substring(0, s.length-2);
+            return s;
+          };
+        var f2:Function=function(a:Object, b:Object):String
+          {
+            return ObjectUtil.compare(a, b) ? "NO" : "yes";
+          };
+        /*
+           trace(ObjectUtil.toString(obj1));
+           trace(ObjectUtil.toString(obj2));
+           trace(ObjectUtil.toString(p1));
+           trace(ObjectUtil.toString(p2));
+         */
+        var f3:Function=function():void
+          {
+            var r:String="{0}{{1}} == {2}{{3}}: {4},{5},{6}";
+            for (var i:int=0; i < arr1.length; i++)
+            {
+              trace(StringUtil.substitute(r, [getQualifiedClassName(arr1[i]), f1(arr1[i]), 
+                getQualifiedClassName(arr2[i]), f1(arr2[i]), 
+                f2(arr1[i], arr2[i]), f2([arr1[i]], [arr2[i]]), f2([arr2[i]], [arr1[i]])]));
+            }
+            trace("********************************************************************************************************************");
+          };
+        f3();
+        for (var i:int=0; i < arr1.length; i++)
+        {
+          adg.dataProvider=[arr1[i]];
+          adg.validateProperties();
+        }
+        f3();
+      }
+    ]]>
+  </mx:Script>
+</mx:Canvas>

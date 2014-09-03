@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" width="800"
+                preinitialize="onPreinitialize()" creationComplete="onCreationComplete()">
+  <mx:AdvancedDataGrid id="adg" width="100%" height="100%" horizontalScrollPolicy="auto"
+                       editable="true" sortableColumns="false" draggableColumns="false"
+                       labelFunction="{CommonUtil.gridLabelFunction}"
+                       keyDown="{CommonUtil.gridKeyDown(event)}">
+    <mx:columns>
+      <mx:AdvancedDataGridColumn dataField="{Constants.PROP_NAME_SERIAL}" width="64"
+                                 labelFunction="{CommonUtil.serialLabelFunction}"
+                                 styleFunction="{CommonUtil.serialStyleFunction}"/>
+      <mx:AdvancedDataGridColumn dataField="no"/>
+      <mx:AdvancedDataGridColumn dataField="name"/>
+      <mx:AdvancedDataGridColumn dataField="formula" width="300" showDataTips="true"/>
+      <mx:AdvancedDataGridColumn dataField="#param" textAlign="right" width="80"/>
+      <mx:AdvancedDataGridColumn dataField="#amount" textAlign="right" width="80"/>
+      <mx:AdvancedDataGridColumn width="1"/>
+    </mx:columns>
+  </mx:AdvancedDataGrid>
+  <mx:HBox horizontalAlign="center" width="100%" paddingTop="7">
+    <mx:Button label="{resourceManager.getString('gcc', 'ok')}" click="save(event)"
+               enabled="{UserController.hrSalWrite}"/>
+    <mx:Button label="{resourceManager.getString('gcc', 'cancel')}" click="close(event)"/>
+  </mx:HBox>
+  <mx:Script>
+    <![CDATA[
+      import mx.collections.ArrayCollection;
+      import mx.managers.PopUpManager;
+      import mx.utils.ObjectUtil;
+      import mx.validators.NumberValidator;
+
+      import com.gc.Constants;
+      import com.gc.CommonEvent;
+      import com.gc.common.controller.UserController;
+      import com.gc.hr.controller.SalaryController;
+      import com.gc.hr.model.SalItem;
+      import com.gc.util.CommonUtil;
+
+      private var list1:ArrayCollection;
+
+      private function onPreinitialize():void
+      {
+        addEventListener(CommonEvent.CREATED, onCreated);
+      }
+
+      private function onCreationComplete():void
+      {
+        var fields:Array=["#amount"];
+        CommonUtil.setDataGridColumns(adg, "gcc_hr", "salFact.items", function(obj:Object):void
+          {
+            if (obj is AdvancedDataGridColumn)
+            {
+              obj.editable=fields.indexOf(obj.dataField) >= 0;
+            }
+          });
+      }
+
+      private function onCreated(e:CommonEvent):void
+      {
+        // inputs: {map:map_no, count:6, ids:{xx001:Ident(xx001), ...}, sis:{GZ:["xx001", ...], ...}}
+        var inputs:Object=e.data;
+        list1=new ArrayCollection();
+        title=resourceManager.getString("gcc_hr", "salFact.items.input");
+        this.height=inputs.count <= 6 ? 480 : 600;
+        PopUpManager.centerPopUp(this);
+        var n1:String, n2:String, si:SalItem, obj:Object;
+        // order in salItem's no
+        for each (si in SalaryController.salItemList)
+        {
+          n1=si.no;
+          if (inputs.sis[n1])
+          {
+            for each (n2 in inputs.sis[n1])
+            {
+              obj=new Object();
+              CommonUtil.copyProperties(inputs.map[n1], obj);
+              obj["#param"]=n2;
+              obj["#amount"]=0;
+              obj.uid=obj.id+"#"+n2;
+              list1.addItem(obj);
+            }
+          }
+        }
+        adg.dataProvider=list1;
+      }
+
+      private function save(e:Event):void
+      {
+        var nv:NumberValidator=new NumberValidator();
+        nv.allowNegative=false;
+        nv.required=true;
+        nv.requiredFieldError=resourceManager.getString("gcc", "number.required.error");
+        nv.minValue=0.01;
+        nv.lowerThanMinError=resourceManager.getString("gcc", "number.lower.than.min.error", [0]);
+        if (CommonUtil.validateGrid(adg, [{field:"#amount", validator:nv}]).length > 0)
+          return;
+        var obj:Object, xx:Object={};
+        for each (obj in list1)
+        {
+          xx[obj["#param"]]=obj["#amount"];
+        }
+        dispatchEvent(CommonEvent.CLOSE_EVENT);
+        owner.dispatchEvent(new CommonEvent(CommonEvent.RETURN, xx));
+      }
+
+      private function close(e:Event=null):void
+      {
+        dispatchEvent(CommonEvent.CLOSE_EVENT);
+        owner.dispatchEvent(CommonEvent.RETURN_EVENT);
+      }
+    ]]>
+  </mx:Script>
+</mx:TitleWindow>

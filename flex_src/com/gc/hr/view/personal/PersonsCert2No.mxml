@@ -1,0 +1,268 @@
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" layout="vertical" creationComplete="onCreationComplete()">
+  <mx:VBox id="vbox" width="100%" height="100%" autoLayout="true">
+    <mx:AdvancedDataGrid id="adg" width="100%" height="100%" horizontalScrollPolicy="auto"
+                         sortableColumns="false" variableRowHeight="false"
+                         labelFunction="{CommonUtil.gridLabelFunction}"
+                         itemRenderer="mx.controls.Label" keyDown="keyDownHandler(event)">
+      <mx:groupedColumns>
+        <mx:AdvancedDataGridColumn dataField="name"/>
+        <mx:AdvancedDataGridColumn dataField="workerId"/>
+        <mx:AdvancedDataGridColumn dataField="depart" dataTipField="depart.name"/>
+        <mx:AdvancedDataGridColumn dataField="office"/>
+        <mx:AdvancedDataGridColumn dataField="fkPosition" dataTipField="fkPosition.name"/>
+        <mx:AdvancedDataGridColumn dataField="pid"/>
+        <mx:AdvancedDataGridColumn dataField="address"/>
+        <mx:AdvancedDataGridColumn dataField="telephone"/>
+        <mx:AdvancedDataGridColumn dataField="onDate"/>
+        <mx:AdvancedDataGridColumn dataField="downDate"/>
+        <mx:AdvancedDataGridColumn dataField="cert2No"/>
+        <mx:AdvancedDataGridColumn dataField="cert2NoHex"/>
+      </mx:groupedColumns>
+    </mx:AdvancedDataGrid>
+    <mx:HBox horizontalAlign="center" width="100%" paddingTop="10" paddingBottom="10">
+      <mx:Button label="{resourceManager.getString('gcc', 'close')}" click="close(event)"/>
+    </mx:HBox>
+  </mx:VBox>
+  <mx:Script>
+    <![CDATA[
+      import mx.collections.IList;
+      import mx.controls.Alert;
+      import mx.events.CloseEvent;
+      import mx.rpc.events.FaultEvent;
+      import mx.rpc.events.ResultEvent;
+      import mx.utils.ObjectUtil;
+
+      import com.gc.Constants;
+      import com.gc.CommonEvent;
+      import com.gc.common.controller.UserController;
+      import com.gc.common.model.Person;
+      import com.gc.common.model.SecurityUser;
+      import com.gc.hr.controller.PersonalController;
+      import com.gc.util.CommonUtil;
+
+      private var socket:Socket=Constants.SOCKET;
+      private var op:int;
+      private var person2:Person;
+      private var query:Alert;
+
+      private function init():void
+      {
+        socket.addEventListener(ProgressEvent.SOCKET_DATA, onSocketData);
+        socket.addEventListener(SecurityErrorEvent.SECURITY_ERROR, onSocketError);
+        socket.addEventListener(IOErrorEvent.IO_ERROR, onSocketError);
+        if (!socket.connected)
+        {
+          onSocketError(null);
+        }
+        else
+        {
+          socket.writeMultiByte(Constants.AIDE_OPENCOM, "utf8");
+          socket.flush();
+        }
+      }
+
+      private function onCreationComplete():void
+      {
+        CommonUtil.setDataGridColumns(adg, "gcc", "person");
+        addEventListener(CommonEvent.CREATED, onCreated);
+        this.setFocus();
+        adg.width=vbox.width=width-viewMetricsAndPadding.left-viewMetricsAndPadding.right;
+      }
+
+      private function onSocketError(event:Event):void
+      {
+        Alert.show(resourceManager.getString("gcc_hr", "person.manage.cert2no.reader.error"), Constants.APP_NAME, Alert.OK, this, null, Constants.ICON32_ERROR);
+      }
+
+      private function onCreated(event:CommonEvent):void
+      {
+        if (event.args == null)
+          return;
+        adg.dataProvider=event.args.filter(function(item:Object, idx:uint, arr:Array):Boolean
+          {
+            return (item.downDate >= Constants.MAX_DATE);
+          });
+        adg.selectedIndex = 0;
+        adg.validateNow();
+        if (adg.dataProvider.length <= 0)
+        {
+          close();
+          Alert.show(resourceManager.getString("gcc", "persons.not.down"), Constants.APP_NAME, Alert.OK, null, null, Constants.ICON32_WARNING);
+          return;
+        }
+        init();
+      }
+
+      private function close(event:Event=null):void
+      {
+        try
+        {
+          socket.removeEventListener(ProgressEvent.SOCKET_DATA, onSocketData);
+          socket.removeEventListener(IOErrorEvent.IO_ERROR, onSocketError);
+          socket.removeEventListener(SecurityErrorEvent.SECURITY_ERROR, onSocketError);
+          if (socket.connected)
+          {
+            socket.writeMultiByte(Constants.AIDE_CLOSECOM, "utf8");
+            socket.flush();
+          }
+        }
+        catch (err:Error)
+        {
+        }
+        dispatchEvent(CommonEvent.CLOSE_EVENT);
+      }
+
+      private function onSocketData(e:ProgressEvent):void
+      {
+        if (adg.selectedItem == null)
+          return;
+        var b:Array=[];
+        while (socket.bytesAvailable)
+        {
+          b.push(socket.readMultiByte(socket.bytesAvailable, "utf8"));
+        }
+        var t:String = b.join("").replace(/\r/g, "");
+        if (t == "ERR")
+        {
+          onSocketError(e);
+        }
+        else if (t == "OK")
+        {
+        }
+        else if (query == null)
+        {
+          var s:Array=t.split("#");
+          if (s.length == 2)
+          {
+            var person:Person=adg.selectedItem as Person;
+            adg.selectable=false;
+            person["newCert2No"]=s[0];
+            person["newCert2NoHex"]=s[1];
+            PersonalController.getPersonByCert2(s[0], getPersonByCert2SuccessHandler, getPersonByCert2FaultHandler);
+          }
+          else
+          {
+            Alert.show(resourceManager.getString("gcc_hr", "person.manage.cert2no.no.error"), Constants.APP_NAME, Alert.OK, this, null, Constants.ICON32_ERROR);
+          }
+        }
+      }
+
+      private function getPersonByCert2FaultHandler(event:FaultEvent):void
+      {
+        PersonalController.getFaultHandler(null)(event);
+        adg.selectable=true;
+      }
+
+      private function getPersonByCert2SuccessHandler(event:ResultEvent):void
+      {
+        if (adg.selectedItem == null)
+          return;
+        var p1:Person=ObjectUtil.copy(adg.selectedItem) as Person;
+        var p2:Person=event.result as Person;
+        person2=p2;
+        adg.selectable=true;
+        if (!UserController.canWritePerson(p2))
+        {
+          Alert.show(resourceManager.getString("gcc", "person.error.no.access", [p2.name, p2.workerId, p2.depart.name]), Constants.APP_NAME, Alert.OK, this, null, Constants.ICON32_ERROR);
+          return;
+        }
+        else if (query == null)
+        {
+          var q:String;
+          op=0;
+          // A.cert2No == null && B == null, 空空匹配, 直接发卡
+          if (p1.cert2No == null && p2 == null)
+          {
+            q=resourceManager.getString("gcc_hr", "person.manage.cert2no.op1", [p1.name, p1.workerId, p1.newCert2No]);
+            p1.cert2No=p1.newCert2No;
+            p1.cert2NoHex=p1.newCert2NoHex;
+            op=1;
+          }
+          // A.cert2No != null && A.newCert2No == A.certNo && B == A, 收卡
+          else if (p1.cert2No != null && p1.newCert2No == p1.cert2No && p1.id == p2.id)
+          {
+            q=resourceManager.getString("gcc_hr", "person.manage.cert2no.op2", [p1.name, p1.workerId, p1.newCert2No]);
+            p1.cert2No=null;
+            p1.cert2NoHex=null;
+            p2=null;
+            op=2;
+          }
+          // 作废原卡重发卡
+          else if (p1.cert2No != null && p1.newCert2No != p1.cert2No && p2 == null)
+          {
+            q=resourceManager.getString("gcc_hr", "person.manage.cert2no.op3", [p1.name, p1.workerId, p1.newCert2No, p1.cert2No]);
+            p1.cert2No=p1.newCert2No;
+            p1.cert2NoHex=p1.newCert2NoHex;
+            op=3;
+          }
+          // 兑换, 互换卡号
+          else if (p1.cert2No != null && p2 != null && p1.newCert2No == p2.cert2No)
+          {
+            q=resourceManager.getString("gcc_hr", "person.manage.cert2no.op4", [p1.name, p1.workerId, p1.cert2No, p2.name, p2.workerId, p2.cert2No]);
+            p2.cert2No=p1.cert2No;
+            p2.cert2NoHex=p1.cert2NoHex;
+            p1.cert2No=p1.newCert2No;
+            p1.cert2NoHex=p1.newCert2NoHex;
+            op=4;
+          }
+          // 转移
+          else if (p1.cert2No == null && p2 != null && p1.newCert2No == p2.cert2No)
+          {
+            q=resourceManager.getString("gcc_hr", "person.manage.cert2no.op5", [p1.name, p1.workerId, p2.name, p2.workerId, p2.cert2No]);
+            p1.cert2No=p2.cert2No;
+            p1.cert2NoHex=p2.cert2NoHex;
+            p2.cert2No=null;
+            p2.cert2NoHex=null;
+            op=5;
+          }
+          else
+          {
+            q=resourceManager.getString("gcc_hr", "person.manage.cert2no.op6");
+            p1=null;
+            p2=null;
+          }
+          query=Alert.show(q, Constants.APP_NAME, Alert.YES | Alert.NO, this, function(event:CloseEvent):void
+            {
+              if (event.detail == Alert.YES)
+              {
+                PersonalController.updatePersonsCert2([p1, p2], updatePersonsCert2SuccessHandler);
+              }
+              query=null;
+            }, Constants.ICON32_QUESTION);
+        }
+      }
+
+      private function updatePersonsCert2SuccessHandler(event:ResultEvent):void
+      {
+        var p1:Person=adg.selectedItem as Person;
+        switch (op)
+        {
+          case 1:
+          case 3:
+          case 4:
+          case 5:
+            p1.cert2No=p1.newCert2No;
+            p1.cert2NoHex=p1.newCert2NoHex;
+            break;
+          case 2:
+            p1.cert2No=null;
+            p1.cert2NoHex=null;
+            break;
+        }
+        var list:IList=CommonUtil.getGridList(adg);
+        if (person2 != null && person2.id != p1.id)
+        {
+          var i:int=CommonUtil.indexOfKey(list.toArray(), person2, "id");
+          if (i >= 0)
+          {
+            var p2:Person=list.getItemAt(i) as Person;
+            p2.cert2No=person2.cert2No;
+            p2.cert2NoHex=person2.cert2NoHex;
+          }
+        }
+        Alert.show(resourceManager.getString("gcc_hr", "person.manage.cert2no.opok"), Constants.APP_NAME, Alert.OK, this, null, Constants.ICON32_INFO);
+        adg.selectedIndex=(adg.selectedIndex >= list.length - 1) ? 0 : adg.selectedIndex + 1;
+      }
+    ]]>
+  </mx:Script>
+</mx:TitleWindow>

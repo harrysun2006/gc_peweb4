@@ -1,0 +1,436 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:gc="com.gc.controls.*"
+                preinitialize="onPreinitialize()" creationComplete="onCreationComplete()">
+  <mx:VBox width="100%" height="100%" horizontalScrollPolicy="off" horizontalAlign="center">
+    <mx:AdvancedDataGrid id="adg" width="100%" height="100%" horizontalScrollPolicy="auto"
+                         lockedColumnCount="3" editable="{writable}" draggableColumns="false"
+                         labelFunction="{CommonUtil.gridLabelFunction}" sortableColumns="false"
+                         keyDown="{CommonUtil.gridKeyDown(event)}" visible="false">
+      <mx:columns>
+        <mx:AdvancedDataGridColumn dataField="{Constants.PROP_NAME_SERIAL}" width="64"
+                                   labelFunction="{CommonUtil.serialLabelFunction}"
+                                   styleFunction="{CommonUtil.serialStyleFunction}"/>
+        <mx:AdvancedDataGridColumn dataField="person" dataTipField="person.workerId"
+                                   editorDataField="selectedItem" itemEditor="{personComboBox}"/>
+        <mx:AdvancedDataGridColumn dataField="person" dataTipField="person.name"/>
+      </mx:columns>
+    </mx:AdvancedDataGrid>
+    <mx:HBox horizontalAlign="center" width="100%" paddingTop="10" paddingBottom="10">
+      <mx:Button label="{resourceManager.getString('gcc', 'insert')}" click="insert(event)"
+                 enabled="{writable}"/>
+      <mx:Button label="{resourceManager.getString('gcc', 'append')}" click="append(event)"
+                 enabled="{writable}"/>
+      <mx:Button label="{resourceManager.getString('gcc', 'delete')}" click="_delete(event)"
+                 enabled="{writable}"/>
+      <mx:Button label="{resourceManager.getString('gcc', 'clear')}" click="clear(event)"
+                 enabled="{writable}"/>
+      <mx:Button label="{resourceManager.getString('gcc', 'export')}" click="export(event)"/>
+      <mx:Button label="{resourceManager.getString('gcc', 'save')}" click="save(event)"
+                 enabled="{writable}"/>
+      <mx:Button label="{resourceManager.getString('gcc', 'close')}" click="close(event)"/>
+    </mx:HBox>
+  </mx:VBox>
+  <mx:Script>
+    <![CDATA[
+      import flash.events.MouseEvent;
+
+      import mx.collections.ArrayCollection;
+      import mx.collections.IList;
+      import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+      import mx.controls.advancedDataGridClasses.AdvancedDataGridColumnGroup;
+      import mx.controls.advancedDataGridClasses.AdvancedDataGridHeaderRenderer;
+      import mx.controls.advancedDataGridClasses.AdvancedDataGridListData;
+      import mx.controls.Alert;
+      import mx.controls.ComboBox;
+      import mx.controls.Label;
+      import mx.events.CloseEvent;
+      import mx.events.FlexEvent;
+      import mx.events.ListEvent;
+      import mx.rpc.events.ResultEvent;
+      import mx.utils.ObjectUtil;
+      import mx.validators.Validator;
+      import mx.validators.ValidationResult;
+
+      import com.gc.common.controller.BaseController;
+      import com.gc.common.controller.UserController;
+      import com.gc.common.model.Person;
+      import com.gc.controls.AdvancedClassFactory;
+      import com.gc.controls.AutoCompleteComboBox;
+      import com.gc.CommonEvent;
+      import com.gc.Constants;
+      import com.gc.hr.Events;
+      import com.gc.hr.controller.PersonalController;
+      import com.gc.hr.controller.SalaryController;
+      import com.gc.hr.model.SalDeptPsn;
+      import com.gc.hr.model.SalItem;
+      import com.gc.hr.model.SalTemplate;
+      import com.gc.hr.model.SalTemplateD;
+      import com.gc.util.CommonUtil;
+      import com.gc.util.DateUtil;
+      import com.gc.validators.ValidatorEx;
+
+      [Bindable]
+      private var personComboBox:AdvancedClassFactory;
+      [Bindable]
+      private var writable:Boolean=false;
+      private var persons:ArrayCollection; // 本部门的发薪人员
+      private var items:ArrayCollection; // 模板的项目列表
+      private var head:SalTemplate; // 当前add/edit的模板, SalTemplate(fetched: depart)
+      private var _data:ArrayCollection; // 当前edit/view的模板明细[{person:p1, stds:[std11, ..., std1n]}, ..., {person:pn, stds:[stdn1, ..., stdnn]}]
+      private var items_old:ArrayCollection;
+      private var head_old:SalTemplate;
+      private var op:String;
+      private var list0:IList; // 3维
+      private var list1:IList; // 3维
+      private var list0$:IList; // 2维
+      private var list1$:IList; // 2维
+      private var pmap:Object=new Object();
+
+      private function onPreinitialize():void
+      {
+        list0=new ArrayCollection();
+        list1=new ArrayCollection();
+        list0$=new ArrayCollection();
+        list1$=new ArrayCollection();
+        personComboBox=new AdvancedClassFactory(AutoCompleteComboBox);
+        personComboBox.properties={dataProvider:Person.ALL, itemRenderer:new ClassFactory(Label), labelField:"workerId"};
+        personComboBox.listeners=[{type: FlexEvent.CREATION_COMPLETE, listener: onPersonBoxCreateComplete}];
+        addEventListener(CommonEvent.CREATED, onCreated);
+      }
+
+      private function onCreationComplete():void
+      {
+        var fields:Array=["person.workerId"];
+        CommonUtil.setDataGridColumns(adg, "gcc_hr", "salTemplate", function(obj:Object):void
+          {
+            if (obj is AdvancedDataGridColumn)
+            {
+              obj.editable=fields.indexOf(obj.dataTipField) >= 0;
+            }
+          });
+      }
+
+      private function onCreated(e:CommonEvent):void
+      {
+        writable=UserController.hrSalWrite;
+        persons=e.args[0] as ArrayCollection;
+        items=e.args[1] as ArrayCollection;
+        head=e.args[2] as SalTemplate;
+        _data=e.args[3] as ArrayCollection;
+        items_old=e.args[4] as ArrayCollection;
+        head_old=e.args[5] as SalTemplate;
+        op=head.id ? (writable ? Constants.OP_EDIT : Constants.OP_VIEW) : Constants.OP_ADD;
+        if (e.args.length > 6 && e.args[6] == Constants.OP_VIEW)
+        {
+          op=Constants.OP_VIEW;
+          writable=false;
+        }
+        if (op == Constants.OP_ADD)
+        {
+          title=resourceManager.getString("gcc_hr", "salTemplate.add2", [head.departName, head.name]);
+        }
+        else if (op == Constants.OP_EDIT)
+        {
+          title=resourceManager.getString("gcc_hr", "salTemplate.edit", [head.departName, head.name]);
+        }
+        else if (op == Constants.OP_VIEW)
+        {
+          title=resourceManager.getString("gcc_hr", "salTemplate.view", [head.departName, head.name]);
+        }
+        for each (var p:Person in persons)
+        {
+          pmap[p.id]=p;
+        }
+        callLater(function():void
+          {
+            adg.columns=adg.columns.concat(getColumns());
+            if (op == Constants.OP_ADD) addTemplate();
+            else loadTemplate();
+          });
+      }
+
+      private function onPersonBoxCreateComplete(e:Event):void
+      {
+        if (e.currentTarget is ComboBox)
+        {
+          var cbox:ComboBox=e.currentTarget as ComboBox;
+          if (cbox.listData is AdvancedDataGridListData)
+          {
+            var d:Object=cbox.data;
+            cbox.selectedIndex=Person.indexOfAll(d.person);
+          }
+        }
+      }
+
+      private function getColumns():Array
+      {
+        var r:Array=[];
+        var cc:AdvancedDataGridColumn;
+        var si:SalItem;
+        for each (si in items)
+        {
+          cc=new AdvancedDataGridColumn();
+          cc.headerText=si.no+"["+si.name+"]";
+          cc.dataField=String(si.id);
+          cc.setStyle("textAlign", "right");
+          cc.showDataTips=true;
+          r.push(cc);
+        }
+        cc=new AdvancedDataGridColumn();
+        cc.width=1;
+        cc.editable=false;
+        r.push(cc);
+        return r;
+      }
+
+      private function load(callback:Function=null):void
+      {
+        // _data格式: [{person:p1, stds:[std11, ..., std1n]}, ..., {person:pn, stds:[stdn1, ..., stdnn]}]
+        var d:Object, obj:Object;
+        var std:SalTemplateD;
+        list0.removeAll();
+        list0$.removeAll();
+        list1$.removeAll();
+        for each (d in _data)
+        {
+          obj=new Object();
+          obj.branch=head.branch;
+          obj.person=d.person;
+          obj.hd=head;
+          obj.uid="p#"+d.person.id+"_stds";
+          for each (std in d.stds)
+          {
+            obj[std.itemId]=std.amount;
+            if (callback is Function)
+              callback(std);
+          }
+          list1$.addItem(obj);
+        }
+        adg.dataProvider=list1$;
+        adg.visible=true;
+      }
+
+      private function addTemplate():void
+      {
+        load();
+      }
+
+      private function loadTemplate():void
+      {
+        load(function(std:SalTemplateD):void{list0.addItem(std);});
+        list0$=ObjectUtil.copy(list1$) as ArrayCollection;
+      }
+
+      private function unpack():IList
+      {
+        var list:IList=new ArrayCollection();
+        var obj:Object;
+        var si:SalItem;
+        var std:SalTemplateD;
+        for each (obj in list1$)
+        {
+          for each (si in items)
+          {
+            std=new SalTemplateD();
+            std.id.branch=head.branch;
+            std.id.template=head;
+            std.id.no=list1$.getItemIndex(obj)+1;
+            std.id.item=si;
+            std.person=obj.person;
+            std.amount=isNaN(Number(obj[si.id])) ? 0 : Number(obj[si.id]);
+            list.addItem(std);
+          }
+        }
+        return list;
+      }
+
+      private function add(i:int):void
+      {
+        var obj:Object=new Object();
+        obj.branch=head.branch;
+        obj.hd=head;
+        for each (var si:SalItem in items)
+        {
+          obj[si.id]=0;
+        }
+        if (i >= 0 && i < list1$.length)
+          list1$.addItemAt(obj, i);
+        else
+          list1$.addItem(obj);
+        adg.selectedItem=obj;
+        adg.editedItemPosition={rowIndex: adg.selectedIndex, columnIndex: 1};
+      }
+
+      private function insert(e:Event):void
+      {
+        if (adg.selectedItem == null)
+        {
+          Alert.show(resourceManager.getString("gcc", "insert.not.null"), Constants.APP_NAME, Alert.OK, 
+            null, null, Constants.ICON32_WARNING);
+          return;
+        }
+        add(adg.selectedIndex);
+      }
+
+      private function append(e:Event):void
+      {
+        add(list1$.length);
+      }
+
+      private function _delete(e:Event):void
+      {
+        var obj:Object=adg.selectedItem;
+        if (obj == null)
+        {
+          Alert.show(resourceManager.getString("gcc", "delete.not.null"), Constants.APP_NAME, Alert.OK, 
+            null, null, Constants.ICON32_WARNING);
+        }
+        else
+        {
+          var k:int=list1$.getItemIndex(obj);
+          if (k >= 0)
+          {
+            list1$.removeItemAt(k);
+            adg.selectedIndex=(k == list1$.length) ? list1$.length - 1 : k;
+          }
+        }
+      }
+
+      private function clear(e:Event):void
+      {
+        if (list1$.length > 0)
+        {
+          Alert.show(resourceManager.getString("gcc", "clear.confirm"), Constants.APP_NAME, Alert.YES | Alert.NO,
+            null, function(e:CloseEvent):void
+            {
+              if (e.detail == Alert.YES)
+                list1$.removeAll();
+            }, Constants.ICON32_QUESTION);
+        }
+      }
+
+      private function export(e:Event):void
+      {
+        var headers:Object=CommonUtil.getGridHeaders(adg);
+        var data:Array=CommonUtil.getGridData(adg);
+        CommonUtil.export(data, headers);
+      }
+
+      private function get changed():Boolean
+      {
+        return ObjectUtil.compare(head, head_old, 1) != 0
+          || ObjectUtil.compare(items, items_old, 1) != 0
+          || ObjectUtil.compare(list0$, list1$, 1) != 0;
+      }
+
+      private function save(e:Event, list:IList=null):void
+      {
+        list1=list ? list : unpack();
+        if (!changed)
+        {
+          Alert.show(resourceManager.getString("gcc", "save.no.change"), Constants.APP_NAME,
+            Alert.OK, null, null, Constants.ICON32_WARNING);
+          return;
+        }
+        var p:Person, obj:Object, m1:Object={}, m2:Object={};
+        for each (obj in list1$)
+        {
+          p=obj.person ? obj.person : null;
+          if (p)
+          {
+            if (!m1[p.id])
+              m1[p.id]=p;
+            if (!m2[p.workerId])
+              m2[p.workerId]=p;
+          }
+        }
+        var pf:Function=function(value:Object, source:Object, property:String, subFields:Array):ValidationResult
+          {
+            var p:Person=source && source.person ? source.person : null;
+            if (p)
+            {
+              if (p != m1[p.id]) return new ValidationResult(true, null, "salTemplate.error.duplicated.id", resourceManager.getString("gcc_hr", "salTemplate.error.duplicated.id", [p.workerId, p.name]));
+              else if (p != m2[p.workerId]) return new ValidationResult(true, null, "salTemplate.error.duplicated.workerId", resourceManager.getString("gcc_hr", "salTemplate.error.duplicated.workerId"));
+            }
+            return null;
+          };
+        var pv:Validator=new ValidatorEx(pf);
+        if (CommonUtil.validateGrid(adg, [{field:"person.workerId", validator:pv}], null, 1, 5000).length > 0)
+          return;
+        var s:String="";
+        for each (obj in list1$)
+        {
+          p=obj.person ? obj.person : null;
+          if (p && !pmap[p.id])
+          {
+            s+=p.name+", ";
+          }
+        }
+        var f:Function=function():void
+          {
+            var params:Object={"@class":CommonUtil.getAlias(SalTemplateD), "@clear":true, "@no":"id"};
+            BaseController.saveVoucher(head_old, list0.toArray(), head, list1.toArray(), params,
+              function(e1:ResultEvent):void
+              {
+                var st:SalTemplate=e1.result as SalTemplate;
+                var info:String;
+                var type:String;
+                if (st == null) {
+                  info=resourceManager.getString("gcc_hr", "salTemplate.del2.success", [head.departName, head.name]);
+                  type=Events.DEL_SALTEMPLATE;
+                } else if (op == Constants.OP_ADD) {
+                  info=resourceManager.getString("gcc_hr", "salTemplate.add.success", [st.departName, st.name]);
+                  type=Events.ADD_SALTEMPLATE;
+                  CommonUtil.copyProperties(st, head);
+                } else if (op == Constants.OP_EDIT) {
+                  info=resourceManager.getString("gcc_hr", "salTemplate.edit.success", [st.departName, st.name]);
+                  type=Events.EDIT_SALTEMPLATE;
+                  CommonUtil.copyProperties(st, head);
+                }
+                Alert.show(info, Constants.APP_NAME, Alert.OK, null, function(e2:Event):void
+                  {
+                    _close();
+                    owner.dispatchEvent(new Events(type, head));
+                  }, Constants.ICON32_INFO);
+              });
+          };
+        if (s.length > 0)
+        {
+          s=resourceManager.getString("gcc_hr", "salTemplate.query.other.persons", [s.substr(0, s.length-2)]);
+          Alert.show(s, Constants.APP_NAME, Alert.YES | Alert.NO, null, function(e3:CloseEvent):void
+            {
+              if (e3.detail == Alert.YES) f();
+            }, Constants.ICON32_QUESTION);
+        }
+        else
+        {
+          f();
+        }
+      }
+
+      private function _close():void
+      {
+        dispatchEvent(CommonEvent.CLOSE_EVENT);
+      }
+
+      private function close(e:Event=null):void
+      {
+        if (changed)
+        {
+          Alert.show(resourceManager.getString("gcc", "save.change"), Constants.APP_NAME, Alert.YES | Alert.NO,
+            null, function(e:CloseEvent):void
+            {
+              if (e.detail == Alert.YES)
+                save(e, unpack());
+              else
+                _close();
+            }, Constants.ICON32_QUESTION);
+        }
+        else
+        {
+          _close();
+        }
+      }
+    ]]>
+  </mx:Script>
+</mx:TitleWindow>

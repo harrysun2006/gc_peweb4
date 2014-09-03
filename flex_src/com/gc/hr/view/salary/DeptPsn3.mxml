@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:salary="com.gc.hr.view.salary.*"
+         width="100%" height="100%" preinitialize="onPreinitialize()">
+  <mx:AdvancedDataGrid id="adg3" dataProvider="{list1}" width="100%" height="100%" editable="false"
+                       horizontalScrollPolicy="auto" lockedColumnCount="4"
+                       labelFunction="{CommonUtil.gridLabelFunction}"
+                       creationComplete="onCreationComplete()">
+    <mx:columns>
+      <mx:AdvancedDataGridColumn dataField="{Constants.PROP_NAME_SERIAL}" width="64"
+                                 labelFunction="{CommonUtil.serialLabelFunction}"
+                                 styleFunction="{CommonUtil.serialStyleFunction}"/>
+      <mx:AdvancedDataGridColumn dataField="selected"
+                                 headerText="{resourceManager.getString('gcc', 'select')}"
+                                 textAlign="center">
+        <mx:itemRenderer>
+          <mx:Component>
+            <mx:CheckBox click="data.selected=!data.selected" selected="{data.selected}"/>
+          </mx:Component>
+        </mx:itemRenderer>
+      </mx:AdvancedDataGridColumn>
+      <mx:AdvancedDataGridColumn dataField="depart" dataTipField="depart.name"/>
+      <mx:AdvancedDataGridColumn dataField="office"/>
+      <mx:AdvancedDataGridColumn dataField="workerId"/>
+      <mx:AdvancedDataGridColumn dataField="name"/>
+      <mx:AdvancedDataGridColumn dataField="onDate"/>
+      <mx:AdvancedDataGridColumn dataField="downDate"/>
+      <mx:AdvancedDataGridColumn dataField="allotDate"/>
+      <mx:AdvancedDataGridColumn dataField="type"/>
+      <mx:AdvancedDataGridColumn dataField="grade"/>
+      <mx:AdvancedDataGridColumn dataField="fkPosition" dataTipField="fkPosition.name"/>
+      <mx:AdvancedDataGridColumn dataField="upgradeDate"/>
+      <mx:AdvancedDataGridColumn width="1" sortable="false"/>
+    </mx:columns>
+  </mx:AdvancedDataGrid>
+  <mx:HBox horizontalAlign="center" width="100%" paddingTop="10" paddingBottom="10">
+    <mx:FormItem label="{resourceManager.getString('gcc', 'person.depart.name')}:" width="50%">
+      <mx:ComboBox id="cbDepart" width="200" itemRenderer="mx.controls.Label"
+                   change="onDepartChange(event)"/>
+    </mx:FormItem>
+    <mx:CheckBox id="cbOn" label="{resourceManager.getString('gcc', 'person.downStatus.no')}"
+                 click="filter(event)" selected="true"/>
+    <mx:CheckBox id="cbDown" label="{resourceManager.getString('gcc', 'person.downStatus.yes')}"
+                 click="filter(event)" selected="false"/>
+    <mx:Button label="{resourceManager.getString('gcc', 'select.all')}" click="selectAll(event)"
+               enabled="{assignable}"/>
+    <mx:Button label="{resourceManager.getString('gcc', 'select.none')}" click="selectNone(event)"
+               enabled="{assignable}"/>
+    <mx:Button label="{resourceManager.getString('gcc', 'refresh')}" click="onRefresh(event)"/>
+    <mx:Button label="{resourceManager.getString('gcc', 'export')}" click="onExport(event)"/>
+    <mx:Button label="{resourceManager.getString('gcc_hr', 'salDeptPsn.assign')}"
+               click="assign(event)" enabled="{assignable}"/>
+    <mx:Button label="{resourceManager.getString('gcc', 'close')}" click="close(event)"/>
+    <mx:FormItem width="50%"/>
+  </mx:HBox>
+  <mx:Script>
+    <![CDATA[
+      import mx.collections.ArrayCollection;
+      import mx.controls.Alert;
+      import mx.rpc.events.ResultEvent;
+      import mx.utils.ObjectUtil;
+
+      import com.gc.Constants;
+      import com.gc.CommonEvent;
+      import com.gc.common.model.Department;
+      import com.gc.common.model.Person;
+      import com.gc.common.controller.BaseController;
+      import com.gc.common.controller.UserController;
+      import com.gc.hr.model.SalDeptPsn;
+      import com.gc.hr.Events;
+      import com.gc.hr.controller.SalaryController;
+      import com.gc.util.CommonUtil;
+
+      [Bindable]
+      private var checkBox:ClassFactory;
+      [Bindable]
+      private var assignable:Boolean;
+      private var list0:ArrayCollection;
+      [Bindable]
+      private var list1:ArrayCollection;
+
+      private function onPreinitialize():void
+      {
+        assignable=UserController.hrHead && UserController.hrSalWrite;
+        this.label=resourceManager.getString('gcc_hr', 'salDeptPsn.page3');
+        addEventListener(Events.ADD_SALDEPTPSN, onAddSalDeptPsn);
+        addEventListener(Events.DEL_SALDEPTPSN, onDelSalDeptPsn);
+        addEventListener(CommonEvent.CHANGED, onChangeHandler);
+      }
+
+      private function onCreationComplete():void
+      {
+        CommonUtil.setDataGridColumns(adg3, "gcc", "person");
+        var departs:ArrayCollection=ObjectUtil.copy(BaseController.departmentList) as ArrayCollection;
+        departs.addItemAt(new Department(0, UserController.branch, resourceManager.getString("gcc", "depart.all")), 0);
+        cbDepart.dataProvider=departs;
+        cbDepart.selectedIndex=-1;
+        if (UserController.hrSub)
+        {
+          cbDepart.enabled=false;
+          cbDepart.selectedIndex=CommonUtil.indexOfKey(BaseController.departmentList, UserController.hrDepart);
+        }
+        load();
+      }
+
+      private function onDepartChange(e:Event=null):void
+      {
+        filter();
+      }
+
+      private function selectAll(e:Event):void
+      {
+        list1.toArray().forEach(function(item:*, index:int, arr:Array):void
+          {
+            item.selected=true;
+          });
+      }
+
+      private function selectNone(e:Event):void
+      {
+        list1.toArray().forEach(function(item:*, index:int, arr:Array):void
+          {
+            item.selected=false;
+          });
+      }
+
+      private function onRefresh(e:Event):void
+      {
+        load();
+      }
+
+      private function onExport(e:Event):void
+      {
+        CommonUtil.export(CommonUtil.getGridData(adg3), CommonUtil.getGridHeaders(adg3), null, 
+          resourceManager.getString("gcc_hr", "salDeptPsn.page3.filename", [UserController.branchName]));
+      }
+
+      private function assign(e:Event):void
+      {
+        var persons:Array=list1.source.filter(function(item:Object, idx:uint, arr:Array):Boolean{return item.selected;});
+        if (persons.length <= 0)
+        {
+          Alert.show(resourceManager.getString("gcc_hr", "salDeptPsn.not.null"), 
+            Constants.APP_NAME, Alert.OK, null, null, Constants.ICON32_WARNING);
+          return;
+        }
+        CommonUtil.popupWindow(DeptPsnAssign, "", this, persons);
+      }
+
+      private function onAddSalDeptPsn(e:Events):void
+      {
+        if (list0)
+        {
+          for (var i:int=list0.length-1; i >= 0; i--)
+          {
+            if (list0.getItemAt(i).selected)
+              list0.removeItemAt(i);
+          }
+          filter();
+        }
+        if (!e.data)
+          e.data=3;
+        else
+          e.stopImmediatePropagation();
+      }
+
+      private function onDelSalDeptPsn(e:Events):void
+      {
+        e.stopImmediatePropagation();
+        if (list0 && e.data==2)
+        {
+          list0=null;
+        }
+      }
+
+      private function onChangeHandler(e:CommonEvent):void
+      {
+        e.stopImmediatePropagation();
+        if (list0==null)
+          load();
+      }
+
+      private function load():void
+      {
+        if (list0 != null)
+          list0.removeAll();
+        SalaryController.getDeptPsnListC(UserController.branchId, function(e:ResultEvent):void
+          {
+            list0=e.result as ArrayCollection;
+            filter();
+          });
+      }
+
+      private function filter(e:Event=null):void
+      {
+        var fon:Boolean=cbOn.selected;
+        var fdown:Boolean=cbDown.selected;
+        var d:Department=cbDepart.selectedItem as Department;
+        var did:int=d ? d.id : 0;
+        list1=new ArrayCollection(list0.source.filter(function(item:Object, idx:uint, arr:Array):Boolean
+          {
+            return ((fon && item.isOn) || (fdown && item.isDown)) && (did == 0 || item.departId == did);
+          }));
+      }
+
+      private function close(e:Event):void
+      {
+        dispatchEvent(CommonEvent.CLOSE_EVENT);
+      }
+    ]]>
+  </mx:Script>
+</mx:VBox>

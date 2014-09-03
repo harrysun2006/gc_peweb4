@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" keyUp="CommonUtil.keyUp(event)"
+				title="{resourceManager.getString('gcc_hr', 'query.salFactD1')}" preinitialize="onPreinitialize()"
+				creationComplete="onCreationComplete()" layout="vertical" width="354" height="392" xmlns:controls="com.gc.controls.*">
+	<mx:Form id="form" width="100%">
+		<mx:FormItem label="{resourceManager.getString('gcc_hr', 'salFactD.id.fact.id.no')}" horizontalAlign="right">
+			<mx:TextInput id="tiRef" name="id.no" width="140"/>
+		</mx:FormItem>
+		<mx:FormItem label="{resourceManager.getString('gcc_hr', 'salFact.depart.name')}" horizontalAlign="right">
+			<mx:ComboBox id="cbDept" name="depart" dataProvider="{BaseController.departmentList}" width="140"/>
+		</mx:FormItem>
+		<mx:FormItem label="{resourceManager.getString('gcc_hr', 'salFact.date')}" horizontalAlign="right">
+			<controls:DateSelector name="date" output="{date}" width="140"/>
+		</mx:FormItem>
+		<mx:FormItem label="{resourceManager.getString('gcc_hr', 'salFact.issueDate')}" horizontalAlign="right">
+			<controls:DateSelector name="issueDate" output="{issueDate}" width="140"/>
+		</mx:FormItem>
+		<mx:FormItem label="{resourceManager.getString('gcc_hr', 'salFact.issueType')}" horizontalAlign="right">
+			<mx:ComboBox id="cbTypes" dataProvider="{SalFact$Type.types}" width="140"/>
+		</mx:FormItem>
+		<mx:FormItem label="{resourceManager.getString('gcc_hr', 'salFact.issuer.workerId')}" horizontalAlign="right">
+			<mx:TextInput id="tiIssuer" width="140"/>
+		</mx:FormItem>
+		<mx:FormItem label="{resourceManager.getString('gcc_hr', 'salFact.summary')}" horizontalAlign="right">
+			<mx:TextInput id="tiSummary" name="summary" width="140"/>
+		</mx:FormItem>
+		<mx:FormItem label="{resourceManager.getString('gcc_hr', 'salFact.comment')}" horizontalAlign="right">
+			<mx:TextInput id="tiComment" name="comment" width="140"/>
+		</mx:FormItem>
+		<mx:GridItem width="100%" horizontalAlign="center">
+			<mx:Button label="{resourceManager.getString('gcc', 'ok')}" click="confirm(event)"/>
+			<mx:Button label="{resourceManager.getString('gcc', 'cancel')}" click="cancel(event)"/>
+		</mx:GridItem>
+	</mx:Form>
+	<mx:Script>
+		<![CDATA[
+			import mx.utils.ObjectProxy;
+			import mx.events.ValidationResultEvent;
+			import mx.managers.PopUpManager;
+			import mx.validators.Validator;
+
+			import com.gc.Constants;
+			import com.gc.CommonEvent;
+			import com.gc.common.controller.UserController;
+			import com.gc.common.controller.BaseController;
+			import com.gc.hr.model.SalFact$Type;
+			import com.gc.util.CommonUtil;
+			
+			[Bindable]
+			private var date:Object=new ObjectProxy();
+			[Bindable]
+			private var issueDate:Object=new ObjectProxy();
+
+			private function onPreinitialize():void
+			{
+				addEventListener(CommonEvent.CREATED, function(e:CommonEvent):void
+					{
+						BaseController.preloadLists(UserController.branchId, ["departmentList"]);
+					});
+			}
+
+			private function onCreationComplete():void
+			{
+				cbDept.selectedIndex=-1;
+				cbTypes.selectedIndex=-1;
+			}
+
+			private function confirm(e:Event):void
+			{
+//				var v:Validator=CommonUtil.genDateValidator(Constants.DATE_FORMAT);
+//				v.required=false;
+//				var ret:ValidationResultEvent=v.validate(dfIssueDate.text);
+//				if (ret.type == ValidationResultEvent.INVALID)
+//				{
+//					CommonUtil.showError(dfIssueDate, 2000, ret.message);
+//					return;
+//				}
+//				ret=v.validate(dfDate.text);
+//				if (ret.type == ValidationResultEvent.INVALID)
+//				{
+//					CommonUtil.showError(dfIssueDate, 2000, ret.message);
+//					return;
+//				}
+//				var issueDate:Date=null;
+//				if (dfIssueDate.text != "")
+//					issueDate=DateField.stringToDate(dfIssueDate.text, Constants.DATE_FORMAT);
+//				var date:Date=null;
+//				if (dfDate.text != "")
+//					date=DateField.stringToDate(dfDate.text, Constants.DATE_FORMAT);
+				var i:int=CommonUtil.indexOfKey(SalFact$Type.types, cbTypes.selectedItem, "value");
+				var salFactType:SalFact$Type=(i >= 0) ? SalFact$Type.types[i] : null;
+				var type:String=salFactType == null ? null : salFactType.type;
+				owner.dispatchEvent(new CommonEvent(CommonEvent.RETURN, null, [UserController.branchId, tiRef.text, cbDept.selectedItem, date, issueDate, type, tiIssuer.text, tiSummary.text, tiComment.text]));
+				PopUpManager.removePopUp(this);
+			}
+
+			private function cancel(e:Event):void
+			{
+				owner.dispatchEvent(new CommonEvent(CommonEvent.CLOSED));
+				PopUpManager.removePopUp(this);
+			}
+		]]>
+	</mx:Script>
+</mx:TitleWindow>
